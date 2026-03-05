@@ -64,13 +64,13 @@ For the full detailed architecture diagram including data flows and module map, 
 ## Roadmap
 
 - [x] Commits section - show commits between base and compare with message, author, and relative time
-- [ ] Multi-diff editor - open all changed files in one tabbed diff view
-- [ ] Go to Next/Previous Diff - keyboard nav across files
-- [ ] Suggest a Change - inline code suggestion in a comment (shows a mini diff)
+- [x] Multi-diff editor - open all changed files in one tabbed diff view
+- [ ] Go to Next/Previous Diff - keyboard nav across files - needs explaination like next diff or next file? - low
+- [x] Suggest a Change - inline code suggestion in a comment (shows a mini diff)                
 - [x] Collapse/Expand All Comments
 - [x] File decorations - comment bubble on files in VS Code explorer
-- [ ] Outdated comment detection - flag comments on lines that changed since commenting
-- [ ] Mark as Viewed from editor toolbar
-- [ ] Comment draft indicator - gutter icon showing where comments exist
+- [ ] Outdated comment detection - flag comments on lines that changed since commenting - low
+- [ ] Mark as Viewed from editor toolbar - low
+- [ ] Comment draft indicator - gutter icon showing where comments exist - medium
 - [x] can we have nicec tree view like this  with collapse all and expan all buuton
-- [ ] circle over extension icon
+- [ ] circle over extension icon - high

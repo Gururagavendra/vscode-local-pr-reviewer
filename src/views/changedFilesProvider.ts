@@ -60,7 +60,7 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
 
         const fileChildren = this.buildFileTree();
         this.filesSection = new SectionItem('Files', 'files', fileChildren, this.files.length);
-        this.commitsSection = new SectionItem('Commits', 'commits', this.buildCommitList(), this.commits.length);
+        this.commitsSection = new SectionItem('Commits', 'commits', this.buildCommitList(), this.commits.length, vscode.TreeItemCollapsibleState.Collapsed);
 
         return [this.filesSection, this.commitsSection];
     }
@@ -179,6 +179,23 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         return items;
     }
 
+    getAllFileItems(): FileChangeItem[] {
+        const items: FileChangeItem[] = [];
+        if (!this.filesSection) { return items; }
+        for (const child of this.filesSection.getChildren()) {
+            if (child instanceof FileChangeItem) {
+                items.push(child);
+            } else if (child instanceof FolderItem) {
+                items.push(...child.children);
+            }
+        }
+        return items;
+    }
+
+    getBranches(): { source: string; target: string } {
+        return { source: this.sourceBranch, target: this.targetBranch };
+    }
+
     clear(): void {
         this.files = [];
         this.commits = [];
@@ -198,9 +215,10 @@ export class SectionItem extends vscode.TreeItem {
         label: string,
         public readonly sectionType: 'files' | 'commits',
         children: ChangedFileTreeItem[],
-        count: number
+        count: number,
+        collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.Expanded
     ) {
-        super(label, vscode.TreeItemCollapsibleState.Expanded);
+        super(label, collapsibleState);
         this.children = children;
         this.description = `${count}`;
         this.contextValue = 'section';
@@ -253,8 +271,8 @@ export class FileChangeItem extends vscode.TreeItem {
         }
 
         const statusLabel = fileChange.status.charAt(0).toUpperCase();
-        this.tooltip = `${fileChange.status}: ${fileChange.filePath}${commentCount > 0 ? ` (${commentCount} comment${commentCount > 1 ? 's' : ''})` : ''}`;
-        this.description = commentCount > 0 ? `${statusLabel}  $(comment) ${commentCount}` : statusLabel;
+        this.tooltip = `${fileChange.status}: ${fileChange.filePath}${commentCount > 0 ? ` (${commentCount} unresolved comment${commentCount > 1 ? 's' : ''})` : ''}`;
+        this.description = commentCount > 0 ? `${statusLabel}  💬 ${commentCount}` : statusLabel;
         this.contextValue = 'fileChange';
 
         switch (fileChange.status) {

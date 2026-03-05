@@ -10,6 +10,7 @@ import { LocalCommentsProvider, CommentFileItem } from './views/localCommentsPro
 import { ReviewCommentController } from './comments/commentController';
 import { LocalReviewTool } from './tools/localReviewTool';
 import { ReviewFileDecorationProvider } from './decorations/fileDecorationProvider';
+import { SuggestChangePanel } from './views/suggestChangePanel';
 
 export async function activate(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -370,6 +371,88 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('localPrReview.refreshComments', () => {
             localCommentsProvider.refresh();
+        })
+    );
+
+    // Open all changed files in a multi-diff editor
+    context.subscriptions.push(
+        vscode.commands.registerCommand('localPrReview.openAllDiffs', async () => {
+            const allFiles = changedFilesProvider.getAllFileItems();
+            if (allFiles.length === 0) {
+                vscode.window.showInformationMessage('No changed files to show. Select branches first.');
+                return;
+            }
+
+            const { source, target } = changedFilesProvider.getBranches();
+            const isWorkingTree = await gitService.isCurrentBranch(target);
+            const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+
+            const resources = allFiles.map(item => {
+                const original = vscode.Uri.parse(
+                    `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(source)}`
+                );
+                const modified = isWorkingTree && workspaceUri
+                    ? vscode.Uri.joinPath(workspaceUri, item.fileChange.filePath)
+                    : vscode.Uri.parse(
+                        `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(target)}`
+                    );
+                return [original, modified, undefined] as [vscode.Uri, vscode.Uri, undefined];
+            });
+
+            try {
+                await vscode.commands.executeCommand(
+                    'vscode.changes',
+                    `Review: ${source} <-> ${target}`,
+                    resources
+                );
+            } catch (err: any) {
+                const msg = err?.message ?? String(err);
+                vscode.window.showErrorMessage(`Multi-diff editor failed: ${msg}`);
+            }
+        })
+    );
+
+    // Suggest a Change — compose a diff suggestion as an inline comment
+    context.subscriptions.push(
+        vscode.commands.registerCommand('localPrReview.suggestChange', async (reply: vscode.CommentReply) => {
+            try {
+                const thread = reply.thread;
+                const range = thread.range;
+                if (!range) {
+                    vscode.window.showWarningMessage('Please select a line range in the diff to suggest a change.');
+                    return;
+                }
+                const doc = await vscode.workspace.openTextDocument(thread.uri);
+                const filePath = extractFilePath(thread.uri);
+
+                // Get the full lines covered by the selection
+                const normalizedRange = new vscode.Range(
+                    range.start.line, 0,
+                    range.end.line, doc.lineAt(range.end.line).text.length
+                );
+                const originalCode = doc.getText(normalizedRange);
+
+                const commentBody = await SuggestChangePanel.show(context.extensionUri, originalCode, filePath);
+
+                if (commentBody === undefined) {
+                    // User cancelled — dispose empty thread
+                    if (thread.comments.length === 0) {
+                        thread.dispose();
+                    }
+                    return;
+                }
+
+                if (thread.comments.length === 0) {
+                    commentController.createThread(thread.uri, range, commentBody, filePath);
+                    thread.dispose();
+                } else {
+                    commentController.addReply(thread, commentBody);
+                }
+                localCommentsProvider.refresh();
+                fileDecorationProvider.refresh();
+            } catch (err: any) {
+                vscode.window.showErrorMessage(`Failed to add suggestion: ${err.message}`);
+            }
         })
     );
 

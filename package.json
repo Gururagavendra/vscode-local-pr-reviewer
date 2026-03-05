@@ -2,7 +2,7 @@
   "name": "local-pr-review",
   "displayName": "Local PR Review",
   "description": "Review your own code changes locally with inline comments — no GitHub or remote needed.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "publisher": "Gururagavendra",
   "icon": "resources/icon.png",
   "repository": {
@@ -197,19 +197,34 @@
         "command": "localPrReview.expandAll",
         "title": "Expand All",
         "icon": "$(expand-all)"
+      },
+      {
+        "command": "localPrReview.openAllDiffs",
+        "title": "Open All Diffs",
+        "icon": "$(diff-multiple)"
+      },
+      {
+        "command": "localPrReview.suggestChange",
+        "title": "Suggest a Change",
+        "icon": "$(lightbulb)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "localPrReview.expandAll",
+          "command": "localPrReview.openAllDiffs",
           "when": "view == localPrReview.changedFiles",
           "group": "navigation@1"
         },
         {
-          "command": "localPrReview.refreshFiles",
+          "command": "localPrReview.expandAll",
           "when": "view == localPrReview.changedFiles",
           "group": "navigation@2"
+        },
+        {
+          "command": "localPrReview.refreshFiles",
+          "when": "view == localPrReview.changedFiles",
+          "group": "navigation@3"
         },
         {
           "command": "localPrReview.refreshPrs",
@@ -253,6 +268,11 @@
         {
           "command": "localPrReview.cancelComment",
           "group": "inline@2",
+          "when": "commentController == localPrReview"
+        },
+        {
+          "command": "localPrReview.suggestChange",
+          "group": "inline@3",
           "when": "commentController == localPrReview"
         }
       ],
