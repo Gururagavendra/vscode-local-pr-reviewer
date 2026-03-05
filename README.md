@@ -68,7 +68,7 @@ For the full detailed architecture diagram including data flows and module map, 
 - [ ] Go to Next/Previous Diff - keyboard nav across files
 - [ ] Suggest a Change - inline code suggestion in a comment (shows a mini diff)
 - [ ] Collapse/Expand All Comments
-- [ ] File decorations - comment bubble on files in VS Code explorer
+- [x] File decorations - comment bubble on files in VS Code explorer
 - [ ] Outdated comment detection - flag comments on lines that changed since commenting
 - [ ] Mark as Viewed from editor toolbar
 - [ ] Comment draft indicator - gutter icon showing where comments exist

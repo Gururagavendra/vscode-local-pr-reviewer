@@ -9,6 +9,7 @@ import { LocalPrsProvider, LocalPrItem } from './views/localPrsProvider';
 import { LocalCommentsProvider, CommentFileItem } from './views/localCommentsProvider';
 import { ReviewCommentController } from './comments/commentController';
 import { LocalReviewTool } from './tools/localReviewTool';
+import { ReviewFileDecorationProvider } from './decorations/fileDecorationProvider';
 
 export async function activate(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -40,6 +41,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Initialize comment controller
     const commentController = new ReviewCommentController(storageService);
+
+    // Initialize file decoration provider (shows unresolved comment badges in explorer)
+    const fileDecorationProvider = new ReviewFileDecorationProvider(storageService);
+    context.subscriptions.push(
+        vscode.window.registerFileDecorationProvider(fileDecorationProvider)
+    );
 
     // Register Copilot Language Model Tool (optional — requires VS Code 1.93+ and Copilot)
     try {
@@ -106,6 +113,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await changedFilesProvider.refresh(base, compare);
             localCommentsProvider.refresh();
             commentController.loadAllThreads();
+            fileDecorationProvider.refresh();
         }
     };
 
@@ -254,6 +262,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     commentController.addReply(thread, reply.text);
                 }
                 localCommentsProvider.refresh();
+                fileDecorationProvider.refresh();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Failed to add comment: ${err.message}`);
             }
@@ -278,6 +287,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     commentController.addReply(thread, reply.text);
                 }
                 localCommentsProvider.refresh();
+                fileDecorationProvider.refresh();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Failed to save comment: ${err.message}`);
             }
@@ -300,6 +310,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 commentController.unresolveThread(thread);
             }
             localCommentsProvider.refresh();
+            fileDecorationProvider.refresh();
         })
     );
 
@@ -307,6 +318,7 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('localPrReview.unresolveThread', (thread: vscode.CommentThread) => {
             commentController.unresolveThread(thread);
             localCommentsProvider.refresh();
+            fileDecorationProvider.refresh();
         })
     );
 
@@ -329,6 +341,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     if (answer === 'Delete') {
                         commentController.deleteComment(thread, comment);
                         localCommentsProvider.refresh();
+                        fileDecorationProvider.refresh();
                     }
                 });
         })
@@ -365,6 +378,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
                 localCommentsProvider.refresh();
                 commentController.loadAllThreads();
+                fileDecorationProvider.refresh();
             }
         })
     );
@@ -377,6 +391,7 @@ export async function activate(context: vscode.ExtensionContext) {
         localCommentsProvider,
         commentController,
         gitFileContentProvider,
+        fileDecorationProvider,
         { dispose: () => localPrManager.dispose() }
     );
 }

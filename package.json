@@ -39,6 +39,18 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "colors": [
+      {
+        "id": "localPrReview.unresolvedCommentForeground",
+        "description": "Color for files with unresolved review comments",
+        "defaults": {
+          "dark": "#e2c08d",
+          "light": "#b58900",
+          "highContrast": "#e2c08d",
+          "highContrastLight": "#b58900"
+        }
+      }
+    ],
     "languageModelTools": [
       {
         "name": "localPrReview_getComments",
