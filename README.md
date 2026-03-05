@@ -73,3 +73,4 @@ For the full detailed architecture diagram including data flows and module map, 
 - [ ] Mark as Viewed from editor toolbar
 - [ ] Comment draft indicator - gutter icon showing where comments exist
 - [x] can we have nicec tree view like this  with collapse all and expan all buuton
+- [ ] circle over extension icon

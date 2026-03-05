@@ -104,6 +104,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const activeReview = localPrManager.getActiveReview();
         if (activeReview) {
             await changedFilesProvider.refresh(activeReview.sourceBranch, activeReview.targetBranch);
+            await commentController.loadAllThreads(gitService, activeReview.sourceBranch, activeReview.targetBranch);
         }
     }
 
@@ -113,7 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await localPrManager.createReview(base, compare);
             await changedFilesProvider.refresh(base, compare);
             localCommentsProvider.refresh();
-            commentController.loadAllThreads();
+            await commentController.loadAllThreads(gitService, base, compare);
             fileDecorationProvider.refresh();
         }
     };
@@ -176,7 +177,7 @@ export async function activate(context: vscode.ExtensionContext) {
             branchSelectorProvider.refresh();
             await changedFilesProvider.refresh(item.review.sourceBranch, item.review.targetBranch);
             localCommentsProvider.refresh();
-            commentController.loadAllThreads();
+            await commentController.loadAllThreads(gitService, item.review.sourceBranch, item.review.targetBranch);
         })
     );
 
@@ -193,7 +194,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 changedFilesProvider.clear();
                 localCommentsProvider.refresh();
                 branchSelectorProvider.refresh();
-                commentController.loadAllThreads();
+                await commentController.loadAllThreads();
             }
         })
     );
@@ -392,7 +393,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     }
                 }
                 localCommentsProvider.refresh();
-                commentController.loadAllThreads();
+                await commentController.loadAllThreads();
                 fileDecorationProvider.refresh();
             }
         })

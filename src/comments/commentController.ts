@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StorageService } from '../storage/storageService';
 import { ReviewThread, ReviewComment } from '../types';
+import { GitService } from '../git/gitService';
 import * as os from 'os';
 
 interface ThreadData {
@@ -11,6 +12,7 @@ interface ThreadData {
 export class ReviewCommentController {
     private controller: vscode.CommentController;
     private threads = new Map<string, vscode.CommentThread>();
+    private gitService: GitService | undefined;
 
     constructor(private storageService: StorageService) {
         this.controller = vscode.comments.createCommentController(
@@ -38,16 +40,69 @@ export class ReviewCommentController {
 
         const fileThreads = comments.threads.filter(t => t.filePath === filePath);
         for (const thread of fileThreads) {
-            this.createVscodeThread(fileUri, thread);
+            if (!this.threads.has(thread.id)) {
+                this.createVscodeThread(fileUri, thread);
+            }
         }
     }
 
     /**
-     * Load all threads for the active review
+     * Load all threads for the active review across all files
      */
-    loadAllThreads(): void {
+    async loadAllThreads(gitService?: GitService, sourceBranch?: string, targetBranch?: string): Promise<void> {
         this.clearAllThreads();
-        // Threads are loaded lazily when diff files are opened
+
+        if (gitService) {
+            this.gitService = gitService;
+        }
+
+        const comments = this.storageService.loadComments();
+        if (!comments || comments.threads.length === 0) { return; }
+
+        const gs = this.gitService;
+        if (!gs || !sourceBranch || !targetBranch) {
+            // Fallback: try to derive branches from stored comments
+            const src = sourceBranch || comments.sourceBranch;
+            const tgt = targetBranch || comments.targetBranch;
+            if (!src || !tgt) { return; }
+            await this.loadAllThreadsForBranches(comments.threads, src, tgt, gs);
+            return;
+        }
+
+        await this.loadAllThreadsForBranches(comments.threads, sourceBranch, targetBranch, gs);
+    }
+
+    private async loadAllThreadsForBranches(
+        threads: ReviewThread[],
+        sourceBranch: string,
+        targetBranch: string,
+        gitService?: GitService
+    ): Promise<void> {
+        // Group threads by file
+        const fileThreads = new Map<string, ReviewThread[]>();
+        for (const thread of threads) {
+            if (!fileThreads.has(thread.filePath)) {
+                fileThreads.set(thread.filePath, []);
+            }
+            fileThreads.get(thread.filePath)!.push(thread);
+        }
+
+        const isWorkingTree = gitService ? await gitService.isCurrentBranch(targetBranch) : false;
+        const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+
+        for (const [filePath, fileSpecificThreads] of fileThreads) {
+            const rightUri = isWorkingTree && workspaceUri
+                ? vscode.Uri.joinPath(workspaceUri, filePath)
+                : vscode.Uri.parse(
+                    `git-local-review://authority/${filePath}?ref=${encodeURIComponent(targetBranch)}`
+                );
+
+            for (const thread of fileSpecificThreads) {
+                if (!this.threads.has(thread.id)) {
+                    this.createVscodeThread(rightUri, thread);
+                }
+            }
+        }
     }
 
     createThread(
