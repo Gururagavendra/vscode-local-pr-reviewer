@@ -50,6 +50,10 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
                     });
                     break;
                 }
+                case 'requestState': {
+                    this._updateWebview();
+                    break;
+                }
                 case 'selectBase': {
                     this.baseBranch = message.branch;
                     this._fireBranchChange();
@@ -71,8 +75,7 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
             }
         });
 
-        // Send initial state
-        this._updateWebview();
+        // State is sent when webview requests it via 'requestState' message
     }
 
     private _fireBranchChange(): void {
@@ -294,8 +297,9 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
         const compareDropdown = document.getElementById('compareDropdown');
         const statusBar = document.getElementById('statusBar');
 
-        // Request branches on load
+        // Request branches and state on load
         vscode.postMessage({ type: 'requestBranches' });
+        vscode.postMessage({ type: 'requestState' });
 
         function filterBranches(query) {
             if (!query) return allBranches.slice(0, 50);
