@@ -2,7 +2,7 @@
   "name": "local-pr-review",
   "displayName": "Local PR Review",
   "description": "Review your own code changes locally with inline comments — no GitHub or remote needed.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "Gururagavendra",
   "icon": "resources/icon.png",
   "repository": {
