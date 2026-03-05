@@ -224,6 +224,12 @@ export class FolderItem extends vscode.TreeItem {
         this.iconPath = vscode.ThemeIcon.Folder;
         this.contextValue = 'folder';
         this.description = `${children.length}`;
+
+        // Set resourceUri so FileDecorationProvider can propagate decorations to folders
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+        if (workspaceRoot) {
+            this.resourceUri = vscode.Uri.joinPath(workspaceRoot, folderPath);
+        }
     }
 }
 
@@ -239,6 +245,12 @@ export class FileChangeItem extends vscode.TreeItem {
             ? fileChange.filePath.substring(fileChange.filePath.lastIndexOf('/') + 1)
             : fileChange.filePath;
         super(displayName, vscode.TreeItemCollapsibleState.None);
+
+        // Set resourceUri so FileDecorationProvider can show comment badges
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+        if (workspaceRoot) {
+            this.resourceUri = vscode.Uri.joinPath(workspaceRoot, fileChange.filePath);
+        }
 
         const statusLabel = fileChange.status.charAt(0).toUpperCase();
         this.tooltip = `${fileChange.status}: ${fileChange.filePath}${commentCount > 0 ? ` (${commentCount} comment${commentCount > 1 ? 's' : ''})` : ''}`;
