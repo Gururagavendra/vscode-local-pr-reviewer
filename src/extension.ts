@@ -41,11 +41,15 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize comment controller
     const commentController = new ReviewCommentController(storageService);
 
-    // Register Copilot Language Model Tool
-    const localReviewTool = new LocalReviewTool(gitService, localPrManager, storageService);
-    context.subscriptions.push(
-        vscode.lm.registerTool('localPrReview_getComments', localReviewTool)
-    );
+    // Register Copilot Language Model Tool (optional — requires VS Code 1.93+ and Copilot)
+    try {
+        const localReviewTool = new LocalReviewTool(gitService, localPrManager, storageService);
+        context.subscriptions.push(
+            vscode.lm.registerTool('localPrReview_getComments', localReviewTool)
+        );
+    } catch {
+        // Language Model API unavailable — extension works without it
+    }
 
     // Register views
     context.subscriptions.push(
@@ -104,6 +108,22 @@ export async function activate(context: vscode.ExtensionContext) {
             commentController.loadAllThreads();
         }
     };
+
+    // Auto-refresh changed files on save when comparing against the working tree
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    context.subscriptions.push(
+        vscode.workspace.onDidSaveTextDocument(async () => {
+            const active = localPrManager.getActiveReview();
+            if (!active) { return; }
+            const isWorkingTree = await gitService.isCurrentBranch(active.targetBranch);
+            if (!isWorkingTree) { return; }
+            // Debounce to avoid rapid successive refreshes
+            if (refreshTimer) { clearTimeout(refreshTimer); }
+            refreshTimer = setTimeout(async () => {
+                await changedFilesProvider.refresh(active.sourceBranch, active.targetBranch);
+            }, 500);
+        })
+    );
 
     // Listen for branch selection from webview
     context.subscriptions.push(
@@ -196,9 +216,15 @@ export async function activate(context: vscode.ExtensionContext) {
             const leftUri = vscode.Uri.parse(
                 `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(item.sourceBranch)}`
             );
-            const rightUri = vscode.Uri.parse(
-                `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(item.targetBranch)}`
-            );
+
+            // If compare branch is the current branch, show working tree file instead of committed version
+            const isWorkingTree = await gitService.isCurrentBranch(item.targetBranch);
+            const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+            const rightUri = isWorkingTree && workspaceUri
+                ? vscode.Uri.joinPath(workspaceUri, item.fileChange.filePath)
+                : vscode.Uri.parse(
+                    `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(item.targetBranch)}`
+                );
 
             const title = `${item.fileChange.filePath} (${item.sourceBranch} <-> ${item.targetBranch})`;
 

@@ -72,4 +72,4 @@ For the full detailed architecture diagram including data flows and module map, 
 - [ ] Outdated comment detection - flag comments on lines that changed since commenting
 - [ ] Mark as Viewed from editor toolbar
 - [ ] Comment draft indicator - gutter icon showing where comments exist
-- [ ] Markdown rendering in comments
+- [ ] can we have nicec tree view like this  with collapse all and expan all buuton

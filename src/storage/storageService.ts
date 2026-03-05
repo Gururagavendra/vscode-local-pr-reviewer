@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { CommentsFile, ReviewThread, ReviewComment } from '../types';
 import { LocalPrManager } from '../services/localPrManager';
-import { v4 as uuidv4 } from 'uuid';
 
 export class StorageService {
     constructor(private localPrManager: LocalPrManager) {}
@@ -65,13 +65,13 @@ export class StorageService {
         }
 
         const thread: ReviewThread = {
-            id: uuidv4(),
+            id: crypto.randomUUID(),
             filePath,
             startLine,
             endLine,
             state: 'unresolved',
             comments: [{
-                id: uuidv4(),
+                id: crypto.randomUUID(),
                 body,
                 author,
                 timestamp: new Date().toISOString(),
@@ -91,7 +91,7 @@ export class StorageService {
         if (!thread) { return undefined; }
 
         const comment: ReviewComment = {
-            id: uuidv4(),
+            id: crypto.randomUUID(),
             body,
             author,
             timestamp: new Date().toISOString(),

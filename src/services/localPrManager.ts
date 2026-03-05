@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { LocalPr, LocalPrRegistry } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 import { GitService } from '../git/gitService';
 
 export class LocalPrManager {
@@ -55,7 +55,7 @@ export class LocalPrManager {
         const targetCommit = await this.gitService.getCommitHash(targetBranch);
 
         const review: LocalPr = {
-            id: uuidv4(),
+            id: crypto.randomUUID(),
             sourceBranch,
             targetBranch,
             sourceCommit: sourceCommit.trim(),

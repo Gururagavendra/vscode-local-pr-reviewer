@@ -77,8 +77,18 @@ export class GitService {
         return this.execGit(`rev-parse ${branch}`);
     }
 
+    async isCurrentBranch(branch: string): Promise<boolean> {
+        const current = await this.getCurrentBranch();
+        return current === branch;
+    }
+
     async getChangedFiles(source: string, target: string): Promise<FileChange[]> {
-        const output = await this.execGit(`diff --name-status ${source}...${target}`);
+        // If target is the current branch, compare against working tree (includes uncommitted changes)
+        const isWorkingTree = await this.isCurrentBranch(target);
+        const diffCmd = isWorkingTree
+            ? `diff --name-status ${source}`
+            : `diff --name-status ${source}...${target}`;
+        const output = await this.execGit(diffCmd);
         if (!output.trim()) {
             return [];
         }
