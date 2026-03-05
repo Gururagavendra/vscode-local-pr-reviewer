@@ -192,14 +192,24 @@
         "command": "localPrReview.openFile",
         "title": "Open File",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "localPrReview.expandAll",
+        "title": "Expand All",
+        "icon": "$(expand-all)"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "localPrReview.expandAll",
+          "when": "view == localPrReview.changedFiles",
+          "group": "navigation@1"
+        },
+        {
           "command": "localPrReview.refreshFiles",
           "when": "view == localPrReview.changedFiles",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
           "command": "localPrReview.refreshPrs",

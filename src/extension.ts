@@ -70,6 +70,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const changedFilesTreeView = vscode.window.createTreeView('localPrReview.changedFiles', {
         treeDataProvider: changedFilesProvider,
         manageCheckboxStateManually: true,
+        showCollapseAll: true,
     });
     changedFilesTreeView.onDidChangeCheckboxState(e => {
         for (const [item, state] of e.items) {
@@ -203,6 +204,20 @@ export async function activate(context: vscode.ExtensionContext) {
             const active = localPrManager.getActiveReview();
             if (active) {
                 await changedFilesProvider.refresh(active.sourceBranch, active.targetBranch);
+            }
+        })
+    );
+
+    // Expand all in changed files tree
+    context.subscriptions.push(
+        vscode.commands.registerCommand('localPrReview.expandAll', async () => {
+            const items = changedFilesProvider.getAllExpandableItems();
+            for (const item of items) {
+                try {
+                    await changedFilesTreeView.reveal(item, { expand: true, select: false, focus: false });
+                } catch {
+                    // item may not be visible
+                }
             }
         })
     );

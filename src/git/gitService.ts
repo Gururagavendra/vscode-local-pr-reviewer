@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
-import { FileChange, FileChangeStatus, GitApi, GitRepository } from '../types';
+import { FileChange, FileChangeStatus, GitApi, GitRepository, CommitInfo } from '../types';
 
 export class GitService {
     private repo: GitRepository | undefined;
@@ -128,6 +128,23 @@ export class GitService {
             return await this.execGit(`show ${ref}:${filePath}`);
         } catch {
             return '';
+        }
+    }
+
+    async getCommitsBetween(source: string, target: string): Promise<CommitInfo[]> {
+        const SEP = '---SEP---';
+        const format = `%H${SEP}%h${SEP}%s${SEP}%an${SEP}%aI${SEP}%ar`;
+        try {
+            const output = await this.execGit(`log --format="${format}" ${source}..${target}`);
+            if (!output.trim()) {
+                return [];
+            }
+            return output.trim().split('\n').map(line => {
+                const [hash, shortHash, message, author, date, relativeDate] = line.split(SEP);
+                return { hash, shortHash, message, author, date, relativeDate };
+            });
+        } catch {
+            return [];
         }
     }
 

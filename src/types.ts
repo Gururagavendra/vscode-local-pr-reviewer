@@ -69,3 +69,12 @@ export interface GitBranch {
     commit?: string;
     type?: number;
 }
+
+export interface CommitInfo {
+    hash: string;
+    shortHash: string;
+    message: string;
+    author: string;
+    date: string;
+    relativeDate: string;
+}

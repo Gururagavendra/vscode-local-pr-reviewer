@@ -1,19 +1,22 @@
 import * as vscode from 'vscode';
-import { FileChange } from '../types';
+import { FileChange, CommitInfo } from '../types';
 import { GitService } from '../git/gitService';
 import { StorageService } from '../storage/storageService';
 import { LocalPrManager } from '../services/localPrManager';
 
-export type ChangedFileTreeItem = FolderItem | FileChangeItem;
+export type ChangedFileTreeItem = SectionItem | FolderItem | FileChangeItem | CommitItem;
 
 export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFileTreeItem> {
     private _onDidChangeTreeData = new vscode.EventEmitter<ChangedFileTreeItem | undefined>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     private files: FileChange[] = [];
+    private commits: CommitInfo[] = [];
     private sourceBranch: string = '';
     private targetBranch: string = '';
     private reviewedFiles: Set<string> = new Set();
+    private filesSection: SectionItem | undefined;
+    private commitsSection: SectionItem | undefined;
 
     constructor(
         private gitService: GitService,
@@ -29,7 +32,10 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
 
     getChildren(element?: ChangedFileTreeItem): ChangedFileTreeItem[] {
         if (!element) {
-            return this.buildTree();
+            return this.buildRootSections();
+        }
+        if (element instanceof SectionItem) {
+            return element.getChildren();
         }
         if (element instanceof FolderItem) {
             return element.children;
@@ -37,10 +43,31 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         return [];
     }
 
-    private buildTree(): ChangedFileTreeItem[] {
+    getParent(element: ChangedFileTreeItem): ChangedFileTreeItem | undefined {
+        if (element instanceof FileChangeItem || element instanceof FolderItem) {
+            return this.filesSection;
+        }
+        if (element instanceof CommitItem) {
+            return this.commitsSection;
+        }
+        return undefined;
+    }
+
+    private buildRootSections(): ChangedFileTreeItem[] {
+        if (this.files.length === 0 && this.commits.length === 0) {
+            return [];
+        }
+
+        const fileChildren = this.buildFileTree();
+        this.filesSection = new SectionItem('Files', 'files', fileChildren, this.files.length);
+        this.commitsSection = new SectionItem('Commits', 'commits', this.buildCommitList(), this.commits.length);
+
+        return [this.filesSection, this.commitsSection];
+    }
+
+    private buildFileTree(): ChangedFileTreeItem[] {
         const commentCounts = this.getCommentCounts();
 
-        // Group files by directory
         const groups = new Map<string, FileChange[]>();
         const rootFiles: FileChange[] = [];
 
@@ -59,7 +86,6 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
 
         const items: ChangedFileTreeItem[] = [];
 
-        // Folders sorted alphabetically
         const sortedDirs = Array.from(groups.keys()).sort();
         for (const dir of sortedDirs) {
             const dirFiles = groups.get(dir)!;
@@ -67,12 +93,15 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
             items.push(new FolderItem(dir, children));
         }
 
-        // Root-level files
         for (const file of rootFiles.sort((a, b) => a.filePath.localeCompare(b.filePath))) {
             items.push(this.createFileItem(file, commentCounts, false));
         }
 
         return items;
+    }
+
+    private buildCommitList(): CommitItem[] {
+        return this.commits.map(c => new CommitItem(c));
     }
 
     private createFileItem(file: FileChange, commentCounts: Map<string, number>, useBasename: boolean): FileChangeItem {
@@ -114,27 +143,75 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
 
         if (!sourceBranch || !targetBranch) {
             this.files = [];
+            this.commits = [];
             this._onDidChangeTreeData.fire(undefined);
             return;
         }
 
         try {
-            this.files = await this.gitService.getChangedFiles(sourceBranch, targetBranch);
+            const [files, commits] = await Promise.all([
+                this.gitService.getChangedFiles(sourceBranch, targetBranch),
+                this.gitService.getCommitsBetween(sourceBranch, targetBranch),
+            ]);
+            this.files = files;
+            this.commits = commits;
         } catch (e: any) {
             vscode.window.showErrorMessage(`Failed to get changed files: ${e.message}`);
             this.files = [];
+            this.commits = [];
         }
         this._onDidChangeTreeData.fire(undefined);
     }
 
+    getAllExpandableItems(): ChangedFileTreeItem[] {
+        const items: ChangedFileTreeItem[] = [];
+        if (this.filesSection) {
+            items.push(this.filesSection);
+            for (const child of this.filesSection.getChildren()) {
+                if (child instanceof FolderItem) {
+                    items.push(child);
+                }
+            }
+        }
+        if (this.commitsSection) {
+            items.push(this.commitsSection);
+        }
+        return items;
+    }
+
     clear(): void {
         this.files = [];
+        this.commits = [];
         this.reviewedFiles.clear();
         this._onDidChangeTreeData.fire(undefined);
     }
 
     dispose(): void {
         this._onDidChangeTreeData.dispose();
+    }
+}
+
+export class SectionItem extends vscode.TreeItem {
+    private children: ChangedFileTreeItem[];
+
+    constructor(
+        label: string,
+        public readonly sectionType: 'files' | 'commits',
+        children: ChangedFileTreeItem[],
+        count: number
+    ) {
+        super(label, vscode.TreeItemCollapsibleState.Expanded);
+        this.children = children;
+        this.description = `${count}`;
+        this.contextValue = 'section';
+
+        this.iconPath = sectionType === 'files'
+            ? new vscode.ThemeIcon('files')
+            : new vscode.ThemeIcon('git-commit');
+    }
+
+    getChildren(): ChangedFileTreeItem[] {
+        return this.children;
     }
 }
 
@@ -168,7 +245,6 @@ export class FileChangeItem extends vscode.TreeItem {
         this.description = commentCount > 0 ? `${statusLabel}  $(comment) ${commentCount}` : statusLabel;
         this.contextValue = 'fileChange';
 
-        // Icon based on status
         switch (fileChange.status) {
             case 'added':
                 this.iconPath = new vscode.ThemeIcon('diff-added', new vscode.ThemeColor('gitDecoration.addedResourceForeground'));
@@ -184,11 +260,20 @@ export class FileChangeItem extends vscode.TreeItem {
                 break;
         }
 
-        // Click opens diff
         this.command = {
             command: 'localPrReview.openDiff',
             title: 'Open Diff',
             arguments: [this],
         };
+    }
+}
+
+export class CommitItem extends vscode.TreeItem {
+    constructor(public readonly commit: CommitInfo) {
+        super(commit.message, vscode.TreeItemCollapsibleState.None);
+        this.description = commit.relativeDate;
+        this.tooltip = `${commit.shortHash} by ${commit.author}\n${commit.message}\n${commit.relativeDate}`;
+        this.iconPath = new vscode.ThemeIcon('git-commit');
+        this.contextValue = 'commit';
     }
 }
