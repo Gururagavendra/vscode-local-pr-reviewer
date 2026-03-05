@@ -8,15 +8,21 @@ A VS Code extension for local branch diff review with offline inline comments. R
 
 ## Installation
 
-**From the Marketplace (recommended):**
+**Quick Install:**
 
 1. Open VS Code
-2. Press `Ctrl+P` (or `Cmd+P` on Mac) and run:
-   ```
-   ext install Gururagavendra.local-pr-review
-   ```
-3. Or search **"Local PR Review"** in the Extensions panel (`Ctrl+Shift+X`)
-4. Or install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Gururagavendra.local-pr-review)
+2. Open the Extensions panel (`Ctrl+Shift+X` / `Cmd+Shift+X`)
+3. Search **"Local PR Review"**
+4. Click **Install**
+
+**Or via Command Palette:**
+
+Press `Ctrl+P` (or `Cmd+P` on Mac) and run:
+```
+ext install Gururagavendra.local-pr-review
+```
+
+**Or install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Gururagavendra.local-pr-review)**
 
 **From a VSIX file:**
 
