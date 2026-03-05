@@ -24,51 +24,27 @@ A VS Code extension for local branch diff review with offline inline comments. R
 
 ## Architecture
 
-```mermaid
-graph TD
-    User(["👤 User"])
-    Copilot(["🤖 Copilot Chat"])
-
-    User -->|opens sidebar| ActivityBar["Activity Bar\n(Local PR Review)"]
-    User -->|reviews code in| DiffEditor["Diff Editor"]
-    Copilot -->|queries via| LRTool["#localReviewComments\nLanguage Model Tool"]
-
-    subgraph Views ["VS Code Views"]
-        direction TB
-        BranchSelector["🔀 Branch Selector\nWebviewView — pick base & compare"]
-        ChangedFiles["📁 Changed Files\nTreeView — grouped by directory\n✔ reviewed checkbox · 💬 comment badge · ↗ open file"]
-        CommentsPanel["💬 Comments Panel\nTreeView — all threads & replies"]
-        ReviewsList["📋 Saved Reviews\nTreeView — switch between sessions"]
-    end
-
-    subgraph Core ["Core Services"]
-        direction TB
-        GitService["🔧 Git Service\nbranch list · file diffs · commit log"]
-        CommentController["💬 Comment Controller\nVS Code Comment API\ncreate · edit · delete · resolve"]
-        LocalPrManager["📦 Local PR Manager\nreview CRUD · reviewed-files state"]
-        StorageService["💾 Storage Service\nread / write JSON per review"]
-    end
-
-    subgraph Persistence ["Persistence"]
-        JSONFiles[".vscode/local-reviews/\n&lt;review-id&gt;.json"]
-    end
-
-    ActivityBar --> BranchSelector & ChangedFiles & CommentsPanel & ReviewsList
-    DiffEditor -->|inline comment| CommentController
-
-    LRTool --> StorageService
-
-    BranchSelector --> GitService
-    ChangedFiles --> GitService
-    ChangedFiles --> StorageService
-    ChangedFiles --> LocalPrManager
-    CommentsPanel --> LocalPrManager
-    ReviewsList --> LocalPrManager
-
-    CommentController --> LocalPrManager
-    LocalPrManager --> StorageService
-    StorageService --> JSONFiles
 ```
+User
+ ├── Activity Bar (Local PR Review sidebar)
+ │    ├── Branch Selector  — pick base & compare branches
+ │    ├── Changed Files    — grouped by directory, reviewed checkbox, comment badge
+ │    ├── Comments Panel   — all threads & replies
+ │    └── Saved Reviews    — switch between review sessions
+ │
+ └── Diff Editor           — inline comments via VS Code Comment API
+
+Copilot Chat
+ └── #localReviewComments  — query your review comments via LM Tool
+
+Core Services
+ ├── GitService       — branch list, file diffs, commit log
+ ├── CommentController — create, edit, delete, resolve threads
+ ├── LocalPrManager   — review CRUD, reviewed-file state
+ └── StorageService   — read/write JSON to .vscode/local-reviews/
+```
+
+For the full detailed architecture diagram including data flows and module map, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Key modules
 
