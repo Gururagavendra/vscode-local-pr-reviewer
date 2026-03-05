@@ -1,0 +1,249 @@
+{
+  "name": "local-pr-review",
+  "displayName": "Local PR Review",
+  "description": "Local branch diff review with offline inline comments",
+  "version": "0.0.1",
+  "publisher": "Gururagavendra",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.git",
+    "onView:localPrReview.branchSelector",
+    "onView:localPrReview.changedFiles",
+    "onView:localPrReview.localPrs",
+    "onView:localPrReview.localComments"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languageModelTools": [
+      {
+        "name": "localPrReview_getComments",
+        "displayName": "Get Local Review Comments",
+        "toolReferenceName": "localReviewComments",
+        "modelDescription": "Returns local code review comments for the current git branch. Use this when the user asks about their local review comments, unresolved comments, or self-review notes. Auto-detects the review from the current git branch.",
+        "icon": "$(comment-discussion)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Optional file path to filter comments for a specific file"
+            },
+            "state": {
+              "type": "string",
+              "enum": ["resolved", "unresolved"],
+              "description": "Optional filter by comment state: resolved or unresolved"
+            }
+          }
+        }
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "localPrReview",
+          "title": "Local PR Review",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "localPrReview": [
+        {
+          "type": "webview",
+          "id": "localPrReview.branchSelector",
+          "name": "Branch Selector"
+        },
+        {
+          "id": "localPrReview.changedFiles",
+          "name": "Changed Files"
+        },
+        {
+          "id": "localPrReview.localPrs",
+          "name": "Local PRs"
+        },
+        {
+          "id": "localPrReview.localComments",
+          "name": "Local Comments"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "localPrReview.selectSource",
+        "title": "Select Base Branch",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "localPrReview.selectDestination",
+        "title": "Select Compare Branch",
+        "icon": "$(search)"
+      },
+      {
+        "command": "localPrReview.refreshComments",
+        "title": "Refresh Comments",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localPrReview.refreshPrs",
+        "title": "Refresh PRs",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localPrReview.createReview",
+        "title": "Create Review",
+        "icon": "$(add)"
+      },
+      {
+        "command": "localPrReview.deleteReview",
+        "title": "Delete Review",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "localPrReview.activateReview",
+        "title": "Activate Review"
+      },
+      {
+        "command": "localPrReview.openDiff",
+        "title": "Open Diff"
+      },
+      {
+        "command": "localPrReview.refreshFiles",
+        "title": "Refresh Changed Files",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localPrReview.resolveThread",
+        "title": "Resolve",
+        "icon": "$(check)"
+      },
+      {
+        "command": "localPrReview.unresolveThread",
+        "title": "Unresolve",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "localPrReview.editComment",
+        "title": "Edit",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "localPrReview.deleteComment",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "localPrReview.addComment",
+        "title": "Add Comment"
+      },
+      {
+        "command": "localPrReview.saveComment",
+        "title": "Save"
+      },
+      {
+        "command": "localPrReview.cancelComment",
+        "title": "Cancel"
+      },
+      {
+        "command": "localPrReview.deleteCommentsFile",
+        "title": "Delete Comments",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "localPrReview.openFile",
+        "title": "Open File",
+        "icon": "$(go-to-file)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "localPrReview.refreshFiles",
+          "when": "view == localPrReview.changedFiles",
+          "group": "navigation"
+        },
+        {
+          "command": "localPrReview.refreshPrs",
+          "when": "view == localPrReview.localPrs",
+          "group": "navigation"
+        },
+        {
+          "command": "localPrReview.refreshComments",
+          "when": "view == localPrReview.localComments",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "localPrReview.deleteReview",
+          "when": "view == localPrReview.localPrs",
+          "group": "inline"
+        },
+        {
+          "command": "localPrReview.deleteCommentsFile",
+          "when": "view == localPrReview.localComments && viewItem == commentFile",
+          "group": "inline"
+        },
+        {
+          "command": "localPrReview.openFile",
+          "when": "view == localPrReview.changedFiles && viewItem == fileChange",
+          "group": "inline"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "localPrReview.addComment",
+          "group": "inline",
+          "when": "commentController == localPrReview && commentThreadIsEmpty"
+        },
+        {
+          "command": "localPrReview.saveComment",
+          "group": "inline@1",
+          "when": "commentController == localPrReview"
+        },
+        {
+          "command": "localPrReview.cancelComment",
+          "group": "inline@2",
+          "when": "commentController == localPrReview"
+        }
+      ],
+      "comments/comment/title": [
+        {
+          "command": "localPrReview.editComment",
+          "group": "inline@1",
+          "when": "commentController == localPrReview && comment == canEdit"
+        },
+        {
+          "command": "localPrReview.deleteComment",
+          "group": "inline@2",
+          "when": "commentController == localPrReview && comment == canEdit"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "localPrReview.resolveThread",
+          "group": "inline@1",
+          "when": "commentController == localPrReview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  }
+}
