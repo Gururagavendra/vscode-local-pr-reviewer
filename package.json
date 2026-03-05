@@ -1,13 +1,33 @@
 {
   "name": "local-pr-review",
   "displayName": "Local PR Review",
-  "description": "Local branch diff review with offline inline comments",
-  "version": "0.0.1",
+  "description": "Review your own code changes locally with inline comments — no GitHub or remote needed.",
+  "version": "0.1.1",
   "publisher": "Gururagavendra",
+  "icon": "resources/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gururagavendra/vscode-local-pr-reviewer"
+  },
+  "homepage": "https://github.com/Gururagavendra/vscode-local-pr-reviewer#readme",
+  "bugs": {
+    "url": "https://github.com/Gururagavendra/vscode-local-pr-reviewer/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "pull request",
+    "code review",
+    "diff",
+    "comments",
+    "offline",
+    "local"
+  ],
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
+    "SCM Providers",
     "Other"
   ],
   "activationEvents": [
@@ -35,7 +55,10 @@
             },
             "state": {
               "type": "string",
-              "enum": ["resolved", "unresolved"],
+              "enum": [
+                "resolved",
+                "unresolved"
+              ],
               "description": "Optional filter by comment state: resolved or unresolved"
             }
           }
@@ -241,6 +264,7 @@
     "@types/node": "^20.0.0",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.7.1",
     "typescript": "^5.3.0"
   },
   "dependencies": {
