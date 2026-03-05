@@ -1,6 +1,28 @@
 # Local PR Review
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/Gururagavendra.local-pr-review?label=VS%20Code%20Marketplace&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=Gururagavendra.local-pr-review)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/Gururagavendra.local-pr-review)](https://marketplace.visualstudio.com/items?itemName=Gururagavendra.local-pr-review)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A VS Code extension for local branch diff review with offline inline comments. Review your own code changes before pushing — no GitHub/remote needed.
+
+## Installation
+
+**From the Marketplace (recommended):**
+
+1. Open VS Code
+2. Press `Ctrl+P` (or `Cmd+P` on Mac) and run:
+   ```
+   ext install Gururagavendra.local-pr-review
+   ```
+3. Or search **"Local PR Review"** in the Extensions panel (`Ctrl+Shift+X`)
+4. Or install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Gururagavendra.local-pr-review)
+
+**From a VSIX file:**
+
+1. Download the latest `.vsix` from the [GitHub Releases](https://github.com/Gururagavendra/vscode-local-pr-reviewer/releases)
+2. Open VS Code → Extensions → `...` menu → **Install from VSIX...**
+3. Select the downloaded file
 
 ## Features
 
@@ -10,6 +32,9 @@ A VS Code extension for local branch diff review with offline inline comments. R
 - **Tree Grouping** - Files grouped by directory with file count
 - **Reviewed Checkbox** - Track which files you've reviewed
 - **Comment Count Badge** - See comment count per file at a glance
+- **Multi-diff Editor** - Open all changed files in one tabbed diff view
+- **Suggest a Change** - Propose inline code changes with a live diff preview
+- **Commits Section** - View commits between base and compare branches
 - **Open File** - Quick action to open the working copy from the diff view
 - **Multiple Reviews** - Save and switch between review sessions
 - **Copilot Integration** - Query your review comments via Copilot chat using `#localReviewComments`
