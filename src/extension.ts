@@ -100,11 +100,18 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Local PR Review: No git repository found. Open a folder with a git repo.');
     }
 
+    // Sync the list of reviewable file paths so comments work on working-tree files
+    const syncReviewableFiles = () => {
+        const allFiles = changedFilesProvider.getAllFileItems();
+        commentController.setReviewableFiles(allFiles.map(f => f.fileChange.filePath));
+    };
+
     // Load active review on startup
     if (initialized) {
         const activeReview = localPrManager.getActiveReview();
         if (activeReview) {
             await changedFilesProvider.refresh(activeReview.sourceBranch, activeReview.targetBranch);
+            syncReviewableFiles();
             await commentController.loadAllThreads(gitService, activeReview.sourceBranch, activeReview.targetBranch);
         }
     }
@@ -114,6 +121,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (base && compare && base !== compare) {
             await localPrManager.createReview(base, compare);
             await changedFilesProvider.refresh(base, compare);
+            syncReviewableFiles();
             localCommentsProvider.refresh();
             await commentController.loadAllThreads(gitService, base, compare);
             fileDecorationProvider.refresh();
@@ -177,6 +185,7 @@ export async function activate(context: vscode.ExtensionContext) {
             localPrManager.setActiveReview(item.review.id);
             branchSelectorProvider.refresh();
             await changedFilesProvider.refresh(item.review.sourceBranch, item.review.targetBranch);
+            syncReviewableFiles();
             localCommentsProvider.refresh();
             await commentController.loadAllThreads(gitService, item.review.sourceBranch, item.review.targetBranch);
         })
@@ -193,6 +202,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (answer === 'Delete') {
                 localPrManager.deleteReview(item.review.id);
                 changedFilesProvider.clear();
+                commentController.setReviewableFiles([]);
                 localCommentsProvider.refresh();
                 branchSelectorProvider.refresh();
                 await commentController.loadAllThreads();
@@ -206,6 +216,7 @@ export async function activate(context: vscode.ExtensionContext) {
             const active = localPrManager.getActiveReview();
             if (active) {
                 await changedFilesProvider.refresh(active.sourceBranch, active.targetBranch);
+                syncReviewableFiles();
             }
         })
     );
@@ -496,6 +507,9 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 function extractFilePath(uri: vscode.Uri): string {
+    if (uri.scheme === 'file') {
+        return vscode.workspace.asRelativePath(uri, false);
+    }
     const path = uri.path;
     return path.startsWith('/') ? path.slice(1) : path;
 }

@@ -13,6 +13,7 @@ export class ReviewCommentController {
     private controller: vscode.CommentController;
     private threads = new Map<string, vscode.CommentThread>();
     private gitService: GitService | undefined;
+    private reviewableFiles = new Set<string>();
 
     constructor(private storageService: StorageService) {
         this.controller = vscode.comments.createCommentController(
@@ -20,15 +21,33 @@ export class ReviewCommentController {
             'Local PR Review'
         );
 
+        const self = this;
         this.controller.commentingRangeProvider = {
             provideCommentingRanges(document: vscode.TextDocument): vscode.Range[] {
-                // Only allow comments on diff documents (our custom scheme)
                 if (document.uri.scheme === 'git-local-review') {
                     return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
+                }
+                // Allow comments on working-tree files that are part of the active review
+                if (document.uri.scheme === 'file') {
+                    const relativePath = vscode.workspace.asRelativePath(document.uri, false);
+                    if (self.reviewableFiles.has(relativePath)) {
+                        return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
+                    }
                 }
                 return [];
             },
         };
+    }
+
+    /**
+     * Set the list of file paths (workspace-relative) that are part of the active review.
+     * This enables commenting on working-tree files shown in diffs.
+     */
+    setReviewableFiles(filePaths: string[]): void {
+        this.reviewableFiles.clear();
+        for (const p of filePaths) {
+            this.reviewableFiles.add(p);
+        }
     }
 
     /**

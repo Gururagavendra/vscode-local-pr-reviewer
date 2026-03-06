@@ -2,7 +2,7 @@
   "name": "local-pr-review",
   "displayName": "Local PR Review",
   "description": "Review your own code changes locally with inline comments — no GitHub or remote needed.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "Gururagavendra",
   "icon": "resources/icon.png",
   "repository": {
@@ -56,14 +56,15 @@
         "name": "localPrReview_getComments",
         "displayName": "Get Local Review Comments",
         "toolReferenceName": "localReviewComments",
-        "modelDescription": "Returns local code review comments for the current git branch. Use this when the user asks about their local review comments, unresolved comments, or self-review notes. Auto-detects the review from the current git branch.",
+        "modelDescription": "Retrieves local code review comments stored by the 'Local PR Review' VS Code extension. This is NOT related to GitHub Pull Requests or any remote service. These are offline, local-only review comments that users create in diff views within VS Code. Call this tool when the user mentions: local comments, local review, review comments, self-review, check comments, local PR comments. The tool auto-detects the active review from the current git branch. If no review exists, tell the user to create one using the Local PR Review sidebar. Do NOT search the filesystem or run terminal commands to find comments — this tool is the ONLY way to access local review comments.",
         "icon": "$(comment-discussion)",
+        "canBeReferencedInPrompt": true,
         "inputSchema": {
           "type": "object",
           "properties": {
             "filePath": {
               "type": "string",
-              "description": "Optional file path to filter comments for a specific file"
+              "description": "Optional workspace-relative file path to filter comments for a specific file. Example: 'src/main.py'"
             },
             "state": {
               "type": "string",
@@ -71,7 +72,7 @@
                 "resolved",
                 "unresolved"
               ],
-              "description": "Optional filter by comment state: resolved or unresolved"
+              "description": "Optional filter by comment state: 'resolved' or 'unresolved'. Omit to get all comments."
             }
           }
         }

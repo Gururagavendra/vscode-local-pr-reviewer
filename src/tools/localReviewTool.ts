@@ -15,6 +15,21 @@ export class LocalReviewTool implements vscode.LanguageModelTool<ToolInput> {
         private storageService: StorageService,
     ) {}
 
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<ToolInput>,
+        _token: vscode.CancellationToken,
+    ) {
+        const confirmationMessages = {
+            title: 'Get Local Review Comments',
+            message: new vscode.MarkdownString(
+                `Retrieve local review comments${
+                    options.input.filePath ? ` for **${options.input.filePath}**` : ''
+                }${options.input.state ? ` (${options.input.state} only)` : ''}?`
+            ),
+        };
+        return { invocationMessage: 'Checking local review comments...', confirmationMessages };
+    }
+
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<ToolInput>,
         _token: vscode.CancellationToken,
@@ -26,7 +41,11 @@ export class LocalReviewTool implements vscode.LanguageModelTool<ToolInput> {
         if (!review) {
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(
-                    JSON.stringify({ error: 'No local review found for the current branch. Create a review first using the Local PR Review sidebar.' })
+                    'No local review exists for the current git branch. '
+                    + 'Tell the user: "No local review found. Open the **Local PR Review** sidebar (activity bar icon), '
+                    + 'select a base and compare branch, then click Create Review. '
+                    + 'After that, you can add comments in diff views and ask me to check them." '
+                    + 'Do NOT search the filesystem or run any commands — local review data is only accessible through this tool.'
                 ),
             ]);
         }
@@ -45,14 +64,11 @@ export class LocalReviewTool implements vscode.LanguageModelTool<ToolInput> {
         if (!comments || comments.threads.length === 0) {
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(
-                    JSON.stringify({
-                        review: {
-                            baseBranch: review.sourceBranch,
-                            compareBranch: review.targetBranch,
-                        },
-                        message: 'No comments found for this review.',
-                        threads: [],
-                    })
+                    `Review found: ${review.targetBranch} -> ${review.sourceBranch}. `
+                    + 'However, there are no comments yet. '
+                    + 'Tell the user: "Your review has no comments yet. Open a file from the Changed Files list '
+                    + 'in the Local PR Review sidebar, then click the + icon in the diff gutter to add a comment." '
+                    + 'Do NOT search the filesystem or run any commands.'
                 ),
             ]);
         }
