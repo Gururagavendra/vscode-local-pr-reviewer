@@ -102,8 +102,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Sync the list of reviewable file paths so comments work on working-tree files
     const syncReviewableFiles = () => {
-        const allFiles = changedFilesProvider.getAllFileItems();
-        commentController.setReviewableFiles(allFiles.map(f => f.fileChange.filePath));
+        commentController.setReviewableFiles(changedFilesProvider.getAllFilePaths());
     };
 
     // Load active review on startup
@@ -290,7 +289,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
             await vscode.commands.executeCommand('vscode.diff', leftUri, rightUri, title);
 
-            // Load comments for this file
+            // Load comments for this file on both sides of the diff
+            commentController.loadThreadsForFile(leftUri, item.fileChange.filePath);
             commentController.loadThreadsForFile(rightUri, item.fileChange.filePath);
         })
     );
@@ -307,9 +307,9 @@ export async function activate(context: vscode.ExtensionContext) {
                         thread.uri,
                         thread.range!,
                         reply.text,
-                        filePath
+                        filePath,
+                        thread
                     );
-                    thread.dispose();
                 } else {
                     commentController.addReply(thread, reply.text);
                 }
@@ -333,9 +333,9 @@ export async function activate(context: vscode.ExtensionContext) {
                         thread.uri,
                         thread.range!,
                         reply.text,
-                        filePath
+                        filePath,
+                        thread
                     );
-                    thread.dispose();
                 } else {
                     commentController.addReply(thread, reply.text);
                 }

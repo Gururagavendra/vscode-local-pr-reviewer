@@ -92,7 +92,9 @@ export class GitService {
             const remoteNames = remoteBranches
                 .map(b => b.name)
                 .filter((name): name is string => !!name);
-            return [...localNames, ...remoteNames];
+            const localSet = new Set(localNames);
+            const uniqueRemote = remoteNames.filter(n => !localSet.has(n));
+            return [...localNames, ...uniqueRemote];
         } catch {
             return localNames;
         }

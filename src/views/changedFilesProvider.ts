@@ -197,6 +197,13 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         return items;
     }
 
+    /**
+     * Get all changed file paths directly (not dependent on tree rendering).
+     */
+    getAllFilePaths(): string[] {
+        return this.files.map(f => f.filePath);
+    }
+
     getBranches(): { source: string; target: string } {
         return { source: this.sourceBranch, target: this.targetBranch };
     }

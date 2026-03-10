@@ -9,11 +9,6 @@ interface ThreadData {
     filePath: string;
 }
 
-// Key for diff-view threads to avoid collision with workspace threads
-function diffThreadKey(threadId: string): string {
-    return `${threadId}::diff`;
-}
-
 export class ReviewCommentController {
     private controller: vscode.CommentController;
     private threads = new Map<string, vscode.CommentThread>();
@@ -30,14 +25,17 @@ export class ReviewCommentController {
         this.controller.commentingRangeProvider = {
             provideCommentingRanges(document: vscode.TextDocument): vscode.Range[] {
                 if (document.uri.scheme === 'git-local-review') {
-                    return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
+                    // Use a large range to avoid race with async content loading
+                    const lastLine = Math.max(document.lineCount - 1, 100000);
+                    return [new vscode.Range(0, 0, lastLine, 0)];
                 }
                 // Allow comments on working-tree files that are part of the active review
                 if (document.uri.scheme === 'file') {
                     const relativePath = vscode.workspace.asRelativePath(document.uri, false);
                     // Check both the explicit set and whether this file has existing threads
                     if (self.reviewableFiles.has(relativePath) || self.hasThreadsForFile(relativePath)) {
-                        return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
+                        const lastLine = Math.max(document.lineCount - 1, 0);
+                        return [new vscode.Range(0, 0, lastLine, 0)];
                     }
                 }
                 return [];
@@ -86,10 +84,12 @@ export class ReviewCommentController {
                     this.createVscodeThread(vscode.Uri.joinPath(workspaceUri, filePath), thread, thread.id);
                 }
             }
-            // Create a diff-view thread if the URI is not a file:// URI and not already created
-            const dKey = diffThreadKey(thread.id);
-            if (fileUri.scheme !== 'file' && !this.threads.has(dKey)) {
-                this.createVscodeThread(fileUri, thread, dKey);
+            // Create a diff-view thread on the given URI if not already created
+            if (fileUri.scheme !== 'file') {
+                const dKey = `${thread.id}::${fileUri.toString()}`;
+                if (!this.threads.has(dKey)) {
+                    this.createVscodeThread(fileUri, thread, dKey);
+                }
             }
         }
     }
@@ -154,7 +154,8 @@ export class ReviewCommentController {
         uri: vscode.Uri,
         range: vscode.Range,
         text: string,
-        filePath: string
+        filePath: string,
+        existingThread?: vscode.CommentThread
     ): void {
         const author = os.userInfo().username;
         const savedThread = this.storageService.addThread(
@@ -165,7 +166,45 @@ export class ReviewCommentController {
             author
         );
 
-        this.createVscodeThread(uri, savedThread);
+        if (uri.scheme !== 'file') {
+            // Repurpose the existing VS Code thread for the diff view (avoids race on dispose)
+            if (existingThread) {
+                this.populateThread(existingThread, savedThread, `${savedThread.id}::${uri.toString()}`);
+            } else {
+                this.createVscodeThread(uri, savedThread, `${savedThread.id}::${uri.toString()}`);
+            }
+            // Also create a file:// thread so it appears in the Comments panel
+            const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+            if (workspaceUri) {
+                const fileUri = vscode.Uri.joinPath(workspaceUri, filePath);
+                this.createVscodeThread(fileUri, savedThread, savedThread.id);
+            }
+        } else {
+            // For file:// URIs, repurpose the existing thread directly
+            if (existingThread) {
+                this.populateThread(existingThread, savedThread, savedThread.id);
+            } else {
+                this.createVscodeThread(uri, savedThread, savedThread.id);
+            }
+        }
+    }
+
+    private populateThread(thread: vscode.CommentThread, savedThread: ReviewThread, key: string): void {
+        thread.comments = savedThread.comments.map(c => this.toVscodeComment(c));
+        thread.canReply = true;
+        thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
+        thread.state = savedThread.state === 'resolved'
+            ? vscode.CommentThreadState.Resolved
+            : vscode.CommentThreadState.Unresolved;
+        thread.label = savedThread.state === 'resolved' ? 'Resolved' : undefined;
+        thread.contextValue = savedThread.state === 'resolved' ? 'resolved' : 'unresolved';
+
+        (thread as any).__threadData = {
+            threadId: savedThread.id,
+            filePath: savedThread.filePath,
+        } satisfies ThreadData;
+
+        this.threads.set(key, thread);
     }
 
     private createVscodeThread(uri: vscode.Uri, savedThread: ReviewThread, key?: string): void {

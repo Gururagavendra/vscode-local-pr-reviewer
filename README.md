@@ -6,6 +6,10 @@
 
 A VS Code extension for local branch diff review with offline inline comments. Review your own code changes before pushing — no GitHub/remote needed.
 
+## Demo
+
+![Local PR Review in action](resources/screenshots/demo.gif)
+
 ## Installation
 
 ### Quick Install
