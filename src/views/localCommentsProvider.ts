@@ -13,7 +13,8 @@ export class LocalCommentsProvider implements vscode.TreeDataProvider<CommentFil
 
     getChildren(): CommentFileItem[] {
         const files = this.storageService.getAllCommentFiles();
-        return files.map(f => new CommentFileItem(f.reviewLabel, f.filePath));
+        const activeReviewLabel = this.storageService.getActiveReviewLabel();
+        return files.map(f => new CommentFileItem(f.reviewLabel, f.filePath, f.reviewLabel === activeReviewLabel));
     }
 
     refresh(): void {
@@ -28,13 +29,17 @@ export class LocalCommentsProvider implements vscode.TreeDataProvider<CommentFil
 export class CommentFileItem extends vscode.TreeItem {
     constructor(
         reviewLabel: string,
-        public readonly filePath: string
+        public readonly filePath: string,
+        isActive: boolean
     ) {
         super(reviewLabel, vscode.TreeItemCollapsibleState.None);
 
-        this.description = 'comments.json';
-        this.tooltip = filePath;
-        this.iconPath = new vscode.ThemeIcon('comment-discussion');
+        this.description = isActive ? 'active' : 'comments.json';
+        this.tooltip = isActive ? `${filePath} (active review)` : filePath;
+        this.iconPath = new vscode.ThemeIcon(
+            isActive ? 'comment-discussion' : 'comment',
+            isActive ? undefined : new vscode.ThemeColor('descriptionForeground')
+        );
         this.contextValue = 'commentFile';
 
         this.command = {

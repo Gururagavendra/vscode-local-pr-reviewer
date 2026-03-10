@@ -9,7 +9,7 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
     private _onDidSelectBranches = new vscode.EventEmitter<{ base: string; compare: string }>();
     readonly onDidSelectBranches = this._onDidSelectBranches.event;
 
-    private baseBranch: string = 'origin/devel';
+    private baseBranch: string = 'main';
     private compareBranch: string = '';
     private branches: string[] = [];
 
@@ -41,13 +41,13 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
         webviewView.webview.onDidReceiveMessage(async (message) => {
             switch (message.type) {
                 case 'requestBranches': {
-                    if (this.branches.length === 0) {
-                        this.branches = await this.gitService.getBranches(true);
-                    }
+                    this.branches = await this.gitService.getBranches(true);
                     webviewView.webview.postMessage({
                         type: 'branches',
                         branches: this.branches,
                     });
+                    // Send current state right after branches so inputs populate correctly
+                    this._updateWebview();
                     break;
                 }
                 case 'requestState': {
@@ -333,6 +333,8 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
             input.addEventListener('focus', () => {
                 activeDropdown = dropdown;
                 activeIndex = -1;
+                // Re-fetch branches from git every time input is focused
+                vscode.postMessage({ type: 'refreshBranches' });
                 const filtered = filterBranches(input.value);
                 renderDropdown(dropdown, filtered, currentValue);
             });
@@ -427,6 +429,12 @@ export class BranchSelectorWebviewProvider implements vscode.WebviewViewProvider
             switch (msg.type) {
                 case 'branches':
                     allBranches = msg.branches;
+                    // Re-render the currently open dropdown with fresh branches
+                    if (activeDropdown === baseDropdown) {
+                        renderDropdown(baseDropdown, filterBranches(baseInput.value), baseInput.value);
+                    } else if (activeDropdown === compareDropdown) {
+                        renderDropdown(compareDropdown, filterBranches(compareInput.value), compareInput.value);
+                    }
                     break;
                 case 'setState':
                     if (msg.base) baseController.setValue(msg.base);

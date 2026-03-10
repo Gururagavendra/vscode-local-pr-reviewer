@@ -9,6 +9,11 @@ interface ThreadData {
     filePath: string;
 }
 
+// Key for diff-view threads to avoid collision with workspace threads
+function diffThreadKey(threadId: string): string {
+    return `${threadId}::diff`;
+}
+
 export class ReviewCommentController {
     private controller: vscode.CommentController;
     private threads = new Map<string, vscode.CommentThread>();
@@ -30,7 +35,8 @@ export class ReviewCommentController {
                 // Allow comments on working-tree files that are part of the active review
                 if (document.uri.scheme === 'file') {
                     const relativePath = vscode.workspace.asRelativePath(document.uri, false);
-                    if (self.reviewableFiles.has(relativePath)) {
+                    // Check both the explicit set and whether this file has existing threads
+                    if (self.reviewableFiles.has(relativePath) || self.hasThreadsForFile(relativePath)) {
                         return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
                     }
                 }
@@ -51,7 +57,21 @@ export class ReviewCommentController {
     }
 
     /**
-     * Load comment threads from storage for a given file in the diff view
+     * Check if any loaded threads reference this file path.
+     */
+    private hasThreadsForFile(relativePath: string): boolean {
+        for (const thread of this.threads.values()) {
+            const data = (thread as any).__threadData as ThreadData | undefined;
+            if (data && data.filePath === relativePath) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Load comment threads from storage for a given file in the diff view.
+     * Creates additional threads on the diff URI so inline comments show in the diff editor.
      */
     loadThreadsForFile(fileUri: vscode.Uri, filePath: string): void {
         const comments = this.storageService.loadComments();
@@ -59,8 +79,17 @@ export class ReviewCommentController {
 
         const fileThreads = comments.threads.filter(t => t.filePath === filePath);
         for (const thread of fileThreads) {
+            // Ensure a workspace file:// thread exists (for Comments panel)
             if (!this.threads.has(thread.id)) {
-                this.createVscodeThread(fileUri, thread);
+                const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+                if (workspaceUri) {
+                    this.createVscodeThread(vscode.Uri.joinPath(workspaceUri, filePath), thread, thread.id);
+                }
+            }
+            // Create a diff-view thread if the URI is not a file:// URI and not already created
+            const dKey = diffThreadKey(thread.id);
+            if (fileUri.scheme !== 'file' && !this.threads.has(dKey)) {
+                this.createVscodeThread(fileUri, thread, dKey);
             }
         }
     }
@@ -106,19 +135,16 @@ export class ReviewCommentController {
             fileThreads.get(thread.filePath)!.push(thread);
         }
 
-        const isWorkingTree = gitService ? await gitService.isCurrentBranch(targetBranch) : false;
         const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+        if (!workspaceUri) { return; }
 
+        // Always use workspace file:// URIs so threads appear in the Comments panel
         for (const [filePath, fileSpecificThreads] of fileThreads) {
-            const rightUri = isWorkingTree && workspaceUri
-                ? vscode.Uri.joinPath(workspaceUri, filePath)
-                : vscode.Uri.parse(
-                    `git-local-review://authority/${filePath}?ref=${encodeURIComponent(targetBranch)}`
-                );
+            const fileUri = vscode.Uri.joinPath(workspaceUri, filePath);
 
             for (const thread of fileSpecificThreads) {
                 if (!this.threads.has(thread.id)) {
-                    this.createVscodeThread(rightUri, thread);
+                    this.createVscodeThread(fileUri, thread, thread.id);
                 }
             }
         }
@@ -142,17 +168,19 @@ export class ReviewCommentController {
         this.createVscodeThread(uri, savedThread);
     }
 
-    private createVscodeThread(uri: vscode.Uri, savedThread: ReviewThread): void {
+    private createVscodeThread(uri: vscode.Uri, savedThread: ReviewThread, key?: string): void {
+        const threadKey = key || savedThread.id;
         const range = new vscode.Range(savedThread.startLine, 0, savedThread.endLine, 0);
         const thread = this.controller.createCommentThread(uri, range, []);
 
         thread.comments = savedThread.comments.map(c => this.toVscodeComment(c));
         thread.canReply = true;
+        thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
         thread.state = savedThread.state === 'resolved'
             ? vscode.CommentThreadState.Resolved
             : vscode.CommentThreadState.Unresolved;
         thread.label = savedThread.state === 'resolved' ? 'Resolved' : undefined;
-        thread.contextValue = 'localPrReviewThread';
+        thread.contextValue = savedThread.state === 'resolved' ? 'resolved' : 'unresolved';
 
         // Store thread data for later retrieval  
         (thread as any).__threadData = {
@@ -160,7 +188,7 @@ export class ReviewCommentController {
             filePath: savedThread.filePath,
         } satisfies ThreadData;
 
-        this.threads.set(savedThread.id, thread);
+        this.threads.set(threadKey, thread);
     }
 
     private toVscodeComment(comment: ReviewComment): vscode.Comment {
@@ -181,6 +209,7 @@ export class ReviewCommentController {
         this.storageService.resolveThread(data.threadId);
         thread.state = vscode.CommentThreadState.Resolved;
         thread.label = 'Resolved';
+        thread.contextValue = 'resolved';
     }
 
     unresolveThread(thread: vscode.CommentThread): void {
@@ -190,6 +219,7 @@ export class ReviewCommentController {
         this.storageService.unresolveThread(data.threadId);
         thread.state = vscode.CommentThreadState.Unresolved;
         thread.label = undefined;
+        thread.contextValue = 'unresolved';
     }
 
     addReply(thread: vscode.CommentThread, text: string): void {

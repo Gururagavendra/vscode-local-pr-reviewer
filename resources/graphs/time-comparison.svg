@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <linearGradient id="localBg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2ecc71"/>
+      <stop offset="100%" stop-color="#27ae60"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" rx="12" fill="#1e1e1e"/>
+
+  <!-- Title -->
+  <text x="400" y="40" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="600">LLM Fetching Review Comments</text>
+  <text x="400" y="62" text-anchor="middle" fill="#888888" font-size="13">Remote API vs Local Storage</text>
+
+  <!-- Y-axis label -->
+  <text x="30" y="240" text-anchor="middle" fill="#aaaaaa" font-size="12" transform="rotate(-90, 30, 240)">Time (seconds)</text>
+
+  <!-- Axes -->
+  <line x1="100" y1="90" x2="100" y2="370" stroke="#333333" stroke-width="1"/>
+  <line x1="100" y1="370" x2="750" y2="370" stroke="#333333" stroke-width="1"/>
+
+  <!-- Y-axis ticks -->
+  <line x1="95" y1="370" x2="100" y2="370" stroke="#555" stroke-width="1"/>
+  <text x="88" y="374" text-anchor="end" fill="#888888" font-size="11">0s</text>
+
+  <line x1="95" y1="314" x2="750" y2="314" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="88" y="318" text-anchor="end" fill="#888888" font-size="11">5s</text>
+
+  <line x1="95" y1="258" x2="750" y2="258" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="88" y="262" text-anchor="end" fill="#888888" font-size="11">10s</text>
+
+  <line x1="95" y1="202" x2="750" y2="202" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="88" y="206" text-anchor="end" fill="#888888" font-size="11">15s</text>
+
+  <line x1="95" y1="146" x2="750" y2="146" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="88" y="150" text-anchor="end" fill="#888888" font-size="11">20s</text>
+
+  <line x1="95" y1="90" x2="750" y2="90" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="88" y="94" text-anchor="end" fill="#888888" font-size="11">25s</text>
+
+  <!-- ===== REMOTE BAR (stacked segments) ===== -->
+  <!-- Network latency / Auth: ~3s -->
+  <rect x="150" y="337" width="130" height="33" rx="3" fill="#e74c3c" opacity="0.6" filter="url(#shadow)"/>
+  <text x="215" y="358" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="500">Auth + Connect</text>
+
+  <!-- API call to fetch PR comments: ~8s -->
+  <rect x="150" y="248" width="130" height="89" rx="3" fill="#e74c3c" opacity="0.75" filter="url(#shadow)"/>
+  <text x="215" y="298" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="500">GitHub API</text>
+  <text x="215" y="312" text-anchor="middle" fill="#ffffff" font-size="9">(paginated fetch)</text>
+
+  <!-- LLM parsing response: ~7s -->
+  <rect x="150" y="170" width="130" height="78" rx="3" fill="#e74c3c" opacity="0.9" filter="url(#shadow)"/>
+  <text x="215" y="210" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="500">LLM Parses</text>
+  <text x="215" y="224" text-anchor="middle" fill="#ffffff" font-size="9">JSON Response</text>
+
+  <!-- Total label for remote -->
+  <text x="215" y="158" text-anchor="middle" fill="#e74c3c" font-size="15" font-weight="700">~18s</text>
+  <text x="215" y="400" text-anchor="middle" fill="#cccccc" font-size="13" font-weight="600">Remote</text>
+  <text x="215" y="416" text-anchor="middle" fill="#888888" font-size="11">(GitHub API)</text>
+
+  <!-- ===== LOCAL BAR ===== -->
+  <!-- Local JSON file read: ~0.3s -->
+  <rect x="380" y="367" width="130" height="3" rx="2" fill="url(#localBg)" filter="url(#shadow)"/>
+
+  <!-- LLM tool returns instantly: ~0.2s -->
+  <rect x="380" y="363" width="130" height="4" rx="2" fill="#2ecc71" opacity="0.85" filter="url(#shadow)"/>
+
+  <!-- Total label for local -->
+  <text x="445" y="353" text-anchor="middle" fill="#2ecc71" font-size="15" font-weight="700">~0.5s</text>
+  <text x="445" y="400" text-anchor="middle" fill="#cccccc" font-size="13" font-weight="600">Local</text>
+  <text x="445" y="416" text-anchor="middle" fill="#888888" font-size="11">(This Extension)</text>
+
+  <!-- ===== SPEED CALLOUT ===== -->
+  <rect x="570" y="150" width="170" height="100" rx="10" fill="#1a3a1a" stroke="#2ecc71" stroke-width="1.5"/>
+  <text x="655" y="185" text-anchor="middle" fill="#2ecc71" font-size="32" font-weight="800">36x</text>
+  <text x="655" y="210" text-anchor="middle" fill="#2ecc71" font-size="14" font-weight="600">Faster</text>
+  <text x="655" y="234" text-anchor="middle" fill="#888888" font-size="11">No network. No API.</text>
+
+  <!-- Arrow from callout to local bar -->
+  <line x1="610" y1="250" x2="490" y2="362" stroke="#2ecc71" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.5"/>
+
+  <!-- Legend -->
+  <rect x="570" y="280" width="12" height="12" rx="2" fill="#e74c3c"/>
+  <text x="590" y="291" fill="#cccccc" font-size="11">Auth + API Fetch + Parse</text>
+
+  <rect x="570" y="302" width="12" height="12" rx="2" fill="#2ecc71"/>
+  <text x="590" y="313" fill="#cccccc" font-size="11">Local JSON read (instant)</text>
+
+  <!-- Requires internet icon -->
+  <text x="585" y="343" fill="#e74c3c" font-size="12">&#x26A0;</text>
+  <text x="600" y="343" fill="#888888" font-size="11">Remote requires internet</text>
+
+  <text x="585" y="363" fill="#2ecc71" font-size="12">&#x2713;</text>
+  <text x="600" y="363" fill="#888888" font-size="11">Local works offline</text>
+
+  <!-- Footer -->
+  <text x="400" y="442" text-anchor="middle" fill="#555555" font-size="10">Scenario: Copilot fetching review comments for a 15-file review with 20 threads</text>
+</svg>

@@ -4,7 +4,7 @@ import { GitService } from '../git/gitService';
 import { StorageService } from '../storage/storageService';
 import { LocalPrManager } from '../services/localPrManager';
 
-export type ChangedFileTreeItem = SectionItem | FolderItem | FileChangeItem | CommitItem;
+export type ChangedFileTreeItem = SectionItem | FolderItem | FileChangeItem | CommitItem | MessageItem;
 
 export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFileTreeItem> {
     private _onDidChangeTreeData = new vscode.EventEmitter<ChangedFileTreeItem | undefined>();
@@ -55,6 +55,9 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
 
     private buildRootSections(): ChangedFileTreeItem[] {
         if (this.files.length === 0 && this.commits.length === 0) {
+            if (this.sourceBranch && this.targetBranch) {
+                return [new MessageItem('No changes between these branches', 'The base and compare branches are identical.')];
+            }
             return [];
         }
 
@@ -121,7 +124,9 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         const comments = this.storageService.loadComments();
         if (comments) {
             for (const thread of comments.threads) {
-                counts.set(thread.filePath, (counts.get(thread.filePath) || 0) + 1);
+                if (thread.state !== 'resolved') {
+                    counts.set(thread.filePath, (counts.get(thread.filePath) || 0) + 1);
+                }
             }
         }
         return counts;
@@ -200,6 +205,10 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         this.files = [];
         this.commits = [];
         this.reviewedFiles.clear();
+        this._onDidChangeTreeData.fire(undefined);
+    }
+
+    fireChange(): void {
         this._onDidChangeTreeData.fire(undefined);
     }
 
@@ -305,5 +314,14 @@ export class CommitItem extends vscode.TreeItem {
         this.tooltip = `${commit.shortHash} by ${commit.author}\n${commit.message}\n${commit.relativeDate}`;
         this.iconPath = new vscode.ThemeIcon('git-commit');
         this.contextValue = 'commit';
+    }
+}
+
+export class MessageItem extends vscode.TreeItem {
+    constructor(label: string, tooltip?: string) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+        this.tooltip = tooltip;
+        this.iconPath = new vscode.ThemeIcon('info');
+        this.contextValue = 'message';
     }
 }

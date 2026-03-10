@@ -6,6 +6,13 @@ export class GitService {
     private repo: GitRepository | undefined;
     private workspaceRoot: string;
 
+    private _onDidChangeBranch = new vscode.EventEmitter<string>();
+    readonly onDidChangeBranch = this._onDidChangeBranch.event;
+    private _onDidChangeHead = new vscode.EventEmitter<void>();
+    readonly onDidChangeHead = this._onDidChangeHead.event;
+    private _lastBranch: string | undefined;
+    private _lastCommit: string | undefined;
+
     constructor(private context: vscode.ExtensionContext) {
         this.workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
     }
@@ -26,6 +33,7 @@ export class GitService {
         // If repos are already available, use them
         if (api.repositories.length > 0) {
             this.repo = api.repositories[0];
+            this._trackBranchChanges();
             return true;
         }
 
@@ -40,8 +48,27 @@ export class GitService {
                 clearTimeout(timeout);
                 disposable.dispose();
                 this.repo = repo;
+                this._trackBranchChanges();
                 resolve(true);
             });
+        });
+    }
+
+    private _trackBranchChanges(): void {
+        if (!this.repo) { return; }
+        this._lastBranch = this.repo.state.HEAD?.name;
+        this._lastCommit = this.repo.state.HEAD?.commit;
+        this.repo.state.onDidChange(() => {
+            const current = this.repo?.state.HEAD?.name;
+            const currentCommit = this.repo?.state.HEAD?.commit;
+            if (current && current !== this._lastBranch) {
+                this._lastBranch = current;
+                this._lastCommit = currentCommit;
+                this._onDidChangeBranch.fire(current);
+            } else if (currentCommit && currentCommit !== this._lastCommit) {
+                this._lastCommit = currentCommit;
+                this._onDidChangeHead.fire();
+            }
         });
     }
 
@@ -61,8 +88,10 @@ export class GitService {
 
         // Also include remote tracking branches (origin/*)
         try {
-            const output = await this.execGit('branch -r --format=%(refname:short)');
-            const remoteNames = output.trim().split('\n').filter(n => n.trim());
+            const remoteBranches = await this.repo.getBranches({ remote: true });
+            const remoteNames = remoteBranches
+                .map(b => b.name)
+                .filter((name): name is string => !!name);
             return [...localNames, ...remoteNames];
         } catch {
             return localNames;

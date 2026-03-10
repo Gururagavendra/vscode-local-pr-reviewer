@@ -48,6 +48,12 @@ Install directly from the [VS Code Marketplace](https://marketplace.visualstudio
 - **Copilot Integration** - Query your review comments via Copilot chat using `#localReviewComments`
 - **Persistent Storage** - Comments saved as JSON in `.vscode/local-reviews/`
 
+## Performance
+
+Local review comments are stored offline, making Copilot queries **36x faster** than fetching from GitHub API:
+
+![Time Comparison: Remote API vs Local Storage](resources/graphs/time-comparison.png)
+
 ## Getting Started
 
 1. Open a Git repository in VS Code

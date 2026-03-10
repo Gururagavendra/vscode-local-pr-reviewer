@@ -172,4 +172,10 @@ export class StorageService {
 
         return files;
     }
+
+    getActiveReviewLabel(): string | undefined {
+        const review = this.localPrManager.getActiveReview();
+        if (!review) { return undefined; }
+        return `${review.targetBranch} -> ${review.sourceBranch}`;
+    }
 }

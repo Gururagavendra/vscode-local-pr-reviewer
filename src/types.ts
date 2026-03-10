@@ -51,6 +51,7 @@ export interface LocalPrRegistry {
 
 export interface GitApi {
     repositories: GitRepository[];
+    onDidOpenRepository: (cb: (repo: GitRepository) => void) => vscode.Disposable;
 }
 
 export interface GitRepository {
@@ -60,6 +61,7 @@ export interface GitRepository {
             name?: string;
             commit?: string;
         };
+        onDidChange: vscode.Event<void>;
     };
     getBranches(query: { remote?: boolean }): Promise<GitBranch[]>;
 }

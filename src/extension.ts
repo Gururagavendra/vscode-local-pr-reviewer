@@ -140,6 +140,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (refreshTimer) { clearTimeout(refreshTimer); }
             refreshTimer = setTimeout(async () => {
                 await changedFilesProvider.refresh(active.sourceBranch, active.targetBranch);
+                syncReviewableFiles();
             }, 500);
         })
     );
@@ -148,6 +149,28 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         branchSelectorProvider.onDidSelectBranches(async ({ base, compare }) => {
             await autoRefreshFiles(base, compare);
+        })
+    );
+
+    // Auto-update compare branch when user switches git branches
+    context.subscriptions.push(
+        gitService.onDidChangeBranch(async (newBranch) => {
+            const base = branchSelectorProvider.getSourceBranch();
+            if (base && newBranch !== base) {
+                branchSelectorProvider.setTargetBranch(newBranch);
+                await autoRefreshFiles(base, newBranch);
+            }
+        })
+    );
+
+    // Auto-refresh when new commits are made on the current branch
+    context.subscriptions.push(
+        gitService.onDidChangeHead(async () => {
+            const active = localPrManager.getActiveReview();
+            if (!active) { return; }
+            await changedFilesProvider.refresh(active.sourceBranch, active.targetBranch);
+            syncReviewableFiles();
+            fileDecorationProvider.refresh();
         })
     );
 
@@ -174,6 +197,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             const review = await localPrManager.createReview(source, target);
             await changedFilesProvider.refresh(source, target);
+            syncReviewableFiles();
             localCommentsProvider.refresh();
             vscode.window.showInformationMessage(`Review created: ${target} -> ${source}`);
         })
@@ -291,6 +315,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
                 localCommentsProvider.refresh();
                 fileDecorationProvider.refresh();
+                changedFilesProvider.fireChange();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Failed to add comment: ${err.message}`);
             }
@@ -316,6 +341,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
                 localCommentsProvider.refresh();
                 fileDecorationProvider.refresh();
+                changedFilesProvider.fireChange();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Failed to save comment: ${err.message}`);
             }
@@ -339,6 +365,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             localCommentsProvider.refresh();
             fileDecorationProvider.refresh();
+            changedFilesProvider.fireChange();
         })
     );
 
@@ -347,6 +374,7 @@ export async function activate(context: vscode.ExtensionContext) {
             commentController.unresolveThread(thread);
             localCommentsProvider.refresh();
             fileDecorationProvider.refresh();
+            changedFilesProvider.fireChange();
         })
     );
 
@@ -370,6 +398,7 @@ export async function activate(context: vscode.ExtensionContext) {
                         commentController.deleteComment(thread, comment);
                         localCommentsProvider.refresh();
                         fileDecorationProvider.refresh();
+                        changedFilesProvider.fireChange();
                     }
                 });
         })
@@ -461,6 +490,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
                 localCommentsProvider.refresh();
                 fileDecorationProvider.refresh();
+                changedFilesProvider.fireChange();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Failed to add suggestion: ${err.message}`);
             }
