@@ -207,8 +207,13 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('localPrReview.activateReview', async (item: LocalPrItem) => {
             localPrManager.setActiveReview(item.review.id);
             branchSelectorProvider.refresh();
-            await changedFilesProvider.refresh(item.review.sourceBranch, item.review.targetBranch);
-            syncReviewableFiles();
+            if (item.review.type === 'standalone') {
+                changedFilesProvider.clear();
+                commentController.setReviewableFiles([]);
+            } else {
+                await changedFilesProvider.refresh(item.review.sourceBranch, item.review.targetBranch);
+                syncReviewableFiles();
+            }
             localCommentsProvider.refresh();
             await commentController.loadAllThreads(gitService, item.review.sourceBranch, item.review.targetBranch);
         })
@@ -217,8 +222,11 @@ export async function activate(context: vscode.ExtensionContext) {
     // Delete review
     context.subscriptions.push(
         vscode.commands.registerCommand('localPrReview.deleteReview', async (item: LocalPrItem) => {
+            const reviewLabel = item.review.type === 'standalone' && item.review.name
+                ? item.review.name
+                : `${item.review.targetBranch} -> ${item.review.sourceBranch}`;
             const answer = await vscode.window.showWarningMessage(
-                `Delete review "${item.review.targetBranch} -> ${item.review.sourceBranch}"? This will also delete all comments.`,
+                `Delete review "${reviewLabel}"? This will also delete all comments.`,
                 { modal: true },
                 'Delete'
             );
@@ -230,6 +238,30 @@ export async function activate(context: vscode.ExtensionContext) {
                 branchSelectorProvider.refresh();
                 await commentController.loadAllThreads();
             }
+        })
+    );
+
+    // Create standalone review (not tied to a PR/diff)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('localPrReview.createStandaloneReview', async () => {
+            const name = await vscode.window.showInputBox({
+                prompt: 'Enter a name for this review',
+                placeHolder: 'e.g. Architecture Notes, Tech Debt Audit',
+                validateInput: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Review name cannot be empty';
+                    }
+                    return undefined;
+                },
+            });
+            if (!name) { return; }
+
+            const review = await localPrManager.createStandaloneReview(name.trim());
+            changedFilesProvider.clear();
+            commentController.setReviewableFiles([]);
+            localCommentsProvider.refresh();
+            await commentController.loadAllThreads(gitService, review.sourceBranch, review.targetBranch);
+            vscode.window.showInformationMessage(`Review "${name.trim()}" created. You can now comment on any file.`);
         })
     );
 
@@ -409,8 +441,13 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('localPrReview.refreshPrs', () => {
             localPrsProvider.refresh();
         }),
-        vscode.commands.registerCommand('localPrReview.refreshComments', () => {
+        vscode.commands.registerCommand('localPrReview.refreshComments', async () => {
+            const active = localPrManager.getActiveReview();
+            if (active) {
+                await commentController.loadAllThreads(gitService, active.sourceBranch, active.targetBranch);
+            }
             localCommentsProvider.refresh();
+            fileDecorationProvider.refresh();
         })
     );
 

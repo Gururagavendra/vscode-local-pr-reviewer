@@ -107,7 +107,33 @@ export class LocalPrManager {
         );
     }
 
+    async createStandaloneReview(name: string): Promise<LocalPr> {
+        const branch = await this.gitService.getCurrentBranch() || 'unknown';
+        const commit = await this.gitService.getCommitHash(branch).catch(() => 'unknown');
+
+        const review: LocalPr = {
+            id: crypto.randomUUID(),
+            sourceBranch: branch,
+            targetBranch: branch,
+            sourceCommit: commit.trim(),
+            targetCommit: commit.trim(),
+            createdAt: new Date().toISOString(),
+            name,
+            type: 'standalone',
+        };
+
+        this.registry.reviews.push(review);
+        this.registry.activeReviewId = review.id;
+        this.saveRegistry();
+
+        return review;
+    }
+
     getReviewDir(review: LocalPr): string {
+        if (review.type === 'standalone' && review.name) {
+            const dirName = `standalone_${review.name}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+            return path.join(this.reviewsDir, dirName);
+        }
         const dirName = `${review.sourceBranch}_${review.targetBranch}`.replace(/\//g, '-');
         return path.join(this.reviewsDir, dirName);
     }

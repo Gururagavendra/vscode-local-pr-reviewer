@@ -8,6 +8,8 @@ export interface LocalPr {
     targetCommit: string;
     createdAt: string;
     reviewedFiles?: string[];
+    name?: string;
+    type?: 'diff' | 'standalone';
 }
 
 export interface FileChange {

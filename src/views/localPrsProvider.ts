@@ -34,10 +34,10 @@ export class LocalPrItem extends vscode.TreeItem {
         public readonly review: LocalPr,
         isActive: boolean
     ) {
-        super(
-            `${review.targetBranch} -> ${review.sourceBranch}`,
-            vscode.TreeItemCollapsibleState.None
-        );
+        const label = review.type === 'standalone' && review.name
+            ? review.name
+            : `${review.targetBranch} -> ${review.sourceBranch}`;
+        super(label, vscode.TreeItemCollapsibleState.None);
 
         this.tooltip = `Created: ${new Date(review.createdAt).toLocaleString()}`;
         this.contextValue = 'localPr';
@@ -45,6 +45,8 @@ export class LocalPrItem extends vscode.TreeItem {
         if (isActive) {
             this.description = 'active';
             this.iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+        } else if (review.type === 'standalone') {
+            this.iconPath = new vscode.ThemeIcon('notebook');
         } else {
             this.iconPath = new vscode.ThemeIcon('git-pull-request');
         }

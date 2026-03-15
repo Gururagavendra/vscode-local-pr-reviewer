@@ -208,6 +208,11 @@
         "command": "localPrReview.suggestChange",
         "title": "Suggest a Change",
         "icon": "$(lightbulb)"
+      },
+      {
+        "command": "localPrReview.createStandaloneReview",
+        "title": "New Review",
+        "icon": "$(add)"
       }
     ],
     "menus": {
@@ -228,9 +233,14 @@
           "group": "navigation@3"
         },
         {
+          "command": "localPrReview.createStandaloneReview",
+          "when": "view == localPrReview.localPrs",
+          "group": "navigation@1"
+        },
+        {
           "command": "localPrReview.refreshPrs",
           "when": "view == localPrReview.localPrs",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
           "command": "localPrReview.refreshComments",

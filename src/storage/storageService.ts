@@ -163,8 +163,11 @@ export class StorageService {
         for (const review of reviews) {
             const commentsPath = this.localPrManager.getCommentsFilePath(review);
             if (fs.existsSync(commentsPath)) {
+                const label = review.type === 'standalone' && review.name
+                    ? review.name
+                    : `${review.targetBranch} -> ${review.sourceBranch}`;
                 files.push({
-                    reviewLabel: `${review.targetBranch} -> ${review.sourceBranch}`,
+                    reviewLabel: label,
                     filePath: commentsPath,
                 });
             }
@@ -176,6 +179,9 @@ export class StorageService {
     getActiveReviewLabel(): string | undefined {
         const review = this.localPrManager.getActiveReview();
         if (!review) { return undefined; }
+        if (review.type === 'standalone' && review.name) {
+            return review.name;
+        }
         return `${review.targetBranch} -> ${review.sourceBranch}`;
     }
 }

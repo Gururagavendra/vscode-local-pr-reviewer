@@ -29,11 +29,9 @@ export class ReviewCommentController {
                     const lastLine = Math.max(document.lineCount - 1, 100000);
                     return [new vscode.Range(0, 0, lastLine, 0)];
                 }
-                // Allow comments on working-tree files that are part of the active review
+                // Allow comments on ANY file when there is an active review
                 if (document.uri.scheme === 'file') {
-                    const relativePath = vscode.workspace.asRelativePath(document.uri, false);
-                    // Check both the explicit set and whether this file has existing threads
-                    if (self.reviewableFiles.has(relativePath) || self.hasThreadsForFile(relativePath)) {
+                    if (self.storageService.loadComments()) {
                         const lastLine = Math.max(document.lineCount - 1, 0);
                         return [new vscode.Range(0, 0, lastLine, 0)];
                     }
