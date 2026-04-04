@@ -5,7 +5,10 @@ export class ReviewFileDecorationProvider implements vscode.FileDecorationProvid
     private _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
     readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
 
-    constructor(private storageService: StorageService) {}
+    constructor(
+        private storageService: StorageService,
+        private gitRoot: string
+    ) {}
 
     provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
         // Only decorate workspace files (file:// scheme)
@@ -13,19 +16,14 @@ export class ReviewFileDecorationProvider implements vscode.FileDecorationProvid
             return undefined;
         }
 
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        if (!workspaceRoot) {
-            return undefined;
-        }
-
-        // Get relative path from workspace root
+        // Get relative path from git repository root
         const absolutePath = uri.fsPath;
-        if (!absolutePath.startsWith(workspaceRoot)) {
+        if (!absolutePath.startsWith(this.gitRoot)) {
             return undefined;
         }
 
         const relativePath = absolutePath
-            .slice(workspaceRoot.length)
+            .slice(this.gitRoot.length)
             .replace(/\\/g, '/')
             .replace(/^\//, '');
 

@@ -22,8 +22,19 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize git service
     const gitService = new GitService(context);
 
+    // Initialize git asynchronously
+    const initialized = await gitService.initialize();
+    if (!initialized) {
+        vscode.window.showInformationMessage('Local PR Review: No git repository found. Open a folder with a git repo.');
+        return;
+    }
+
+    // Get the actual git repository root (may differ from workspace folder)
+    const gitRootUri = await gitService.getGitRootUri();
+    const gitRoot = gitRootUri.fsPath;
+
     // Initialize services (will work once git is ready)
-    const localPrManager = new LocalPrManager(gitService, workspaceRoot);
+    const localPrManager = new LocalPrManager(gitService, gitRoot);
     const storageService = new StorageService(localPrManager);
 
     // Register custom URI scheme for git file content
@@ -36,15 +47,15 @@ export async function activate(context: vscode.ExtensionContext) {
     const branchSelectorProvider = new BranchSelectorWebviewProvider(
         context.extensionUri, gitService, localPrManager
     );
-    const changedFilesProvider = new ChangedFilesProvider(gitService, storageService, localPrManager);
+    const changedFilesProvider = new ChangedFilesProvider(gitService, storageService, localPrManager, gitRootUri);
     const localPrsProvider = new LocalPrsProvider(localPrManager);
     const localCommentsProvider = new LocalCommentsProvider(storageService);
 
     // Initialize comment controller
-    const commentController = new ReviewCommentController(storageService);
+    const commentController = new ReviewCommentController(storageService, gitRootUri);
 
     // Initialize file decoration provider (shows unresolved comment badges in explorer)
-    const fileDecorationProvider = new ReviewFileDecorationProvider(storageService);
+    const fileDecorationProvider = new ReviewFileDecorationProvider(storageService, gitRoot);
     context.subscriptions.push(
         vscode.window.registerFileDecorationProvider(fileDecorationProvider)
     );
@@ -94,25 +105,17 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // Initialize git asynchronously (after tree views are registered)
-    const initialized = await gitService.initialize();
-    if (!initialized) {
-        vscode.window.showInformationMessage('Local PR Review: No git repository found. Open a folder with a git repo.');
-    }
-
     // Sync the list of reviewable file paths so comments work on working-tree files
     const syncReviewableFiles = () => {
         commentController.setReviewableFiles(changedFilesProvider.getAllFilePaths());
     };
 
     // Load active review on startup
-    if (initialized) {
-        const activeReview = localPrManager.getActiveReview();
-        if (activeReview) {
-            await changedFilesProvider.refresh(activeReview.sourceBranch, activeReview.targetBranch);
-            syncReviewableFiles();
-            await commentController.loadAllThreads(gitService, activeReview.sourceBranch, activeReview.targetBranch);
-        }
+    const activeReview = localPrManager.getActiveReview();
+    if (activeReview) {
+        await changedFilesProvider.refresh(activeReview.sourceBranch, activeReview.targetBranch);
+        syncReviewableFiles();
+        await commentController.loadAllThreads(gitService, activeReview.sourceBranch, activeReview.targetBranch);
     }
 
     // Helper: auto-create review and refresh files when both branches are selected
@@ -261,9 +264,8 @@ export async function activate(context: vscode.ExtensionContext) {
     // Open file (working copy)
     context.subscriptions.push(
         vscode.commands.registerCommand('localPrReview.openFile', async (item: FileChangeItem) => {
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
-            if (workspaceRoot) {
-                const fileUri = vscode.Uri.joinPath(workspaceRoot, item.fileChange.filePath);
+            if (gitRootUri) {
+                const fileUri = vscode.Uri.joinPath(gitRootUri, item.fileChange.filePath);
                 await vscode.window.showTextDocument(fileUri);
             }
         })
@@ -278,9 +280,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // If compare branch is the current branch, show working tree file instead of committed version
             const isWorkingTree = await gitService.isCurrentBranch(item.targetBranch);
-            const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-            const rightUri = isWorkingTree && workspaceUri
-                ? vscode.Uri.joinPath(workspaceUri, item.fileChange.filePath)
+            const rightUri = isWorkingTree && gitRootUri
+                ? vscode.Uri.joinPath(gitRootUri, item.fileChange.filePath)
                 : vscode.Uri.parse(
                     `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(item.targetBranch)}`
                 );
@@ -425,14 +426,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
             const { source, target } = changedFilesProvider.getBranches();
             const isWorkingTree = await gitService.isCurrentBranch(target);
-            const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
 
             const resources = allFiles.map(item => {
                 const original = vscode.Uri.parse(
                     `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(source)}`
                 );
-                const modified = isWorkingTree && workspaceUri
-                    ? vscode.Uri.joinPath(workspaceUri, item.fileChange.filePath)
+                const modified = isWorkingTree && gitRootUri
+                    ? vscode.Uri.joinPath(gitRootUri, item.fileChange.filePath)
                     : vscode.Uri.parse(
                         `git-local-review://authority/${item.fileChange.filePath}?ref=${encodeURIComponent(target)}`
                     );

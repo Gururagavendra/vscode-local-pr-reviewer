@@ -15,7 +15,10 @@ export class ReviewCommentController {
     private gitService: GitService | undefined;
     private reviewableFiles = new Set<string>();
 
-    constructor(private storageService: StorageService) {
+    constructor(
+        private storageService: StorageService,
+        private gitRootUri: vscode.Uri
+    ) {
         this.controller = vscode.comments.createCommentController(
             'localPrReview',
             'Local PR Review'
@@ -31,7 +34,19 @@ export class ReviewCommentController {
                 }
                 // Allow comments on working-tree files that are part of the active review
                 if (document.uri.scheme === 'file') {
-                    const relativePath = vscode.workspace.asRelativePath(document.uri, false);
+                    const absolutePath = document.uri.fsPath;
+                    
+                    // Check if file is within git root
+                    if (!absolutePath.startsWith(self.gitRootUri.fsPath)) {
+                        return [];
+                    }
+                    
+                    // Extract path relative to git root (not workspace root)
+                    const relativePath = absolutePath
+                        .slice(self.gitRootUri.fsPath.length)
+                        .replace(/\\/g, '/')
+                        .replace(/^\//, '');
+                    
                     // Check both the explicit set and whether this file has existing threads
                     if (self.reviewableFiles.has(relativePath) || self.hasThreadsForFile(relativePath)) {
                         const lastLine = Math.max(document.lineCount - 1, 0);
@@ -79,10 +94,7 @@ export class ReviewCommentController {
         for (const thread of fileThreads) {
             // Ensure a workspace file:// thread exists (for Comments panel)
             if (!this.threads.has(thread.id)) {
-                const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-                if (workspaceUri) {
-                    this.createVscodeThread(vscode.Uri.joinPath(workspaceUri, filePath), thread, thread.id);
-                }
+                this.createVscodeThread(vscode.Uri.joinPath(this.gitRootUri, filePath), thread, thread.id);
             }
             // Create a diff-view thread on the given URI if not already created
             if (fileUri.scheme !== 'file') {
@@ -135,12 +147,9 @@ export class ReviewCommentController {
             fileThreads.get(thread.filePath)!.push(thread);
         }
 
-        const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-        if (!workspaceUri) { return; }
-
-        // Always use workspace file:// URIs so threads appear in the Comments panel
+        // Always use git root file:// URIs so threads appear in the Comments panel
         for (const [filePath, fileSpecificThreads] of fileThreads) {
-            const fileUri = vscode.Uri.joinPath(workspaceUri, filePath);
+            const fileUri = vscode.Uri.joinPath(this.gitRootUri, filePath);
 
             for (const thread of fileSpecificThreads) {
                 if (!this.threads.has(thread.id)) {
@@ -174,11 +183,8 @@ export class ReviewCommentController {
                 this.createVscodeThread(uri, savedThread, `${savedThread.id}::${uri.toString()}`);
             }
             // Also create a file:// thread so it appears in the Comments panel
-            const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-            if (workspaceUri) {
-                const fileUri = vscode.Uri.joinPath(workspaceUri, filePath);
-                this.createVscodeThread(fileUri, savedThread, savedThread.id);
-            }
+            const fileUri = vscode.Uri.joinPath(this.gitRootUri, filePath);
+            this.createVscodeThread(fileUri, savedThread, savedThread.id);
         } else {
             // For file:// URIs, repurpose the existing thread directly
             if (existingThread) {

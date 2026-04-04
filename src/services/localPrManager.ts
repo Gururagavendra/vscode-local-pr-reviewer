@@ -15,9 +15,9 @@ export class LocalPrManager {
 
     constructor(
         private gitService: GitService,
-        workspaceRoot: string
+        gitRoot: string
     ) {
-        this.reviewsDir = path.join(workspaceRoot, '.vscode', 'local-reviews');
+        this.reviewsDir = path.join(gitRoot, '.vscode', 'local-reviews');
         this.registryPath = path.join(this.reviewsDir, 'registry.json');
         this.loadRegistry();
     }
