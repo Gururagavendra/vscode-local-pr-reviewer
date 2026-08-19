@@ -105,7 +105,7 @@ export class GitService {
     }
 
     async getCommitHash(branch: string): Promise<string> {
-        return this.execGit(`rev-parse ${branch}`);
+        return this.execGit(['rev-parse', branch]);
     }
 
     async isCurrentBranch(branch: string): Promise<boolean> {
@@ -114,12 +114,13 @@ export class GitService {
     }
 
     async getChangedFiles(source: string, target: string): Promise<FileChange[]> {
-        // If target is the current branch, compare against working tree (includes uncommitted changes)
+        // If target is the current branch, compare the working tree from the
+        // branches' common ancestor so source-only changes are not reversed.
         const isWorkingTree = await this.isCurrentBranch(target);
-        const diffCmd = isWorkingTree
-            ? `diff --name-status ${source}`
-            : `diff --name-status ${source}...${target}`;
-        const output = await this.execGit(diffCmd);
+        const diffBase = isWorkingTree
+            ? (await this.execGit(['merge-base', source, target])).trim()
+            : `${source}...${target}`;
+        const output = await this.execGit(['diff', '--name-status', diffBase]);
         if (!output.trim()) {
             return [];
         }
@@ -156,7 +157,7 @@ export class GitService {
 
     async getFileContent(ref: string, filePath: string): Promise<string> {
         try {
-            return await this.execGit(`show ${ref}:${filePath}`);
+            return await this.execGit(['show', `${ref}:${filePath}`]);
         } catch {
             return '';
         }
@@ -166,7 +167,11 @@ export class GitService {
         const SEP = '---SEP---';
         const format = `%H${SEP}%h${SEP}%s${SEP}%an${SEP}%aI${SEP}%ar`;
         try {
-            const output = await this.execGit(`log --format="${format}" ${source}..${target}`);
+            const output = await this.execGit([
+                'log',
+                `--format=${format}`,
+                `${source}..${target}`,
+            ]);
             if (!output.trim()) {
                 return [];
             }
@@ -179,10 +184,11 @@ export class GitService {
         }
     }
 
-    private execGit(args: string): Promise<string> {
+    private execGit(args: readonly string[]): Promise<string> {
         return new Promise((resolve, reject) => {
-            cp.exec(
-                `git ${args}`,
+            cp.execFile(
+                'git',
+                args,
                 { cwd: this.workspaceRoot, maxBuffer: 10 * 1024 * 1024 },
                 (error, stdout, stderr) => {
                     if (error) {
