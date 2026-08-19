@@ -114,12 +114,13 @@ export class GitService {
     }
 
     async getChangedFiles(source: string, target: string): Promise<FileChange[]> {
-        // If target is the current branch, compare against working tree (includes uncommitted changes)
+        // If target is the current branch, compare the working tree from the
+        // branches' common ancestor so source-only changes are not reversed.
         const isWorkingTree = await this.isCurrentBranch(target);
-        const diffCmd = isWorkingTree
-            ? `diff --name-status ${source}`
-            : `diff --name-status ${source}...${target}`;
-        const output = await this.execGit(diffCmd);
+        const diffBase = isWorkingTree
+            ? (await this.execGit(`merge-base ${source} ${target}`)).trim()
+            : `${source}...${target}`;
+        const output = await this.execGit(`diff --name-status ${diffBase}`);
         if (!output.trim()) {
             return [];
         }
