@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 import { FileChange, FileChangeStatus, GitApi, GitRepository, CommitInfo } from '../types';
 
 export class GitService {
@@ -27,12 +28,32 @@ export class GitService {
             return this._gitRoot;
         }
         try {
-            this._gitRoot = (await this.execGit('rev-parse --show-toplevel')).trim();
+            const gitRoot = (await this.execGit('rev-parse --show-toplevel')).trim();
+            this._gitRoot = this.mapOntoWorkspacePath(gitRoot);
             return this._gitRoot;
         } catch {
             // Fallback to workspace root if git command fails
             return this.workspaceRoot;
         }
+    }
+
+    /**
+     * `rev-parse --show-toplevel` resolves symlinks; remap the result onto
+     * the workspace path so file URIs stay inside the workspace folder.
+     */
+    private mapOntoWorkspacePath(gitRoot: string): string {
+        if (!this.workspaceRoot) {
+            return gitRoot;
+        }
+        try {
+            const realWorkspaceRoot = fs.realpathSync(this.workspaceRoot);
+            if (gitRoot.startsWith(realWorkspaceRoot)) {
+                return this.workspaceRoot + gitRoot.slice(realWorkspaceRoot.length);
+            }
+        } catch {
+            // Workspace root not on disk; keep the git-reported path
+        }
+        return gitRoot;
     }
 
     /**
