@@ -7,7 +7,7 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
-        "/home/guru/wms/rapyuta-wms"
+        "${workspaceFolder}"
       ],
       "outFiles": [
         "${workspaceFolder}/out/**/*.js"

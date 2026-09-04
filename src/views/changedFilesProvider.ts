@@ -21,7 +21,8 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
     constructor(
         private gitService: GitService,
         private storageService: StorageService,
-        private localPrManager: LocalPrManager
+        private localPrManager: LocalPrManager,
+        private gitRootUri: vscode.Uri
     ) {
         this.reviewedFiles = new Set(localPrManager.getReviewedFiles());
     }
@@ -93,7 +94,7 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         for (const dir of sortedDirs) {
             const dirFiles = groups.get(dir)!;
             const children = dirFiles.map(f => this.createFileItem(f, commentCounts, true));
-            items.push(new FolderItem(dir, children));
+            items.push(new FolderItem(dir, children, this.gitRootUri));
         }
 
         for (const file of rootFiles.sort((a, b) => a.filePath.localeCompare(b.filePath))) {
@@ -111,7 +112,8 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<ChangedFile
         const item = new FileChangeItem(
             file, this.sourceBranch, this.targetBranch,
             commentCounts.get(file.filePath) || 0,
-            useBasename
+            useBasename,
+            this.gitRootUri
         );
         item.checkboxState = this.reviewedFiles.has(file.filePath)
             ? vscode.TreeItemCheckboxState.Checked
@@ -252,7 +254,8 @@ export class SectionItem extends vscode.TreeItem {
 export class FolderItem extends vscode.TreeItem {
     constructor(
         public readonly folderPath: string,
-        public readonly children: FileChangeItem[]
+        public readonly children: FileChangeItem[],
+        private gitRootUri: vscode.Uri
     ) {
         super(folderPath, vscode.TreeItemCollapsibleState.Expanded);
         this.iconPath = vscode.ThemeIcon.Folder;
@@ -260,10 +263,7 @@ export class FolderItem extends vscode.TreeItem {
         this.description = `${children.length}`;
 
         // Set resourceUri so FileDecorationProvider can propagate decorations to folders
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
-        if (workspaceRoot) {
-            this.resourceUri = vscode.Uri.joinPath(workspaceRoot, folderPath);
-        }
+        this.resourceUri = vscode.Uri.joinPath(gitRootUri, folderPath);
     }
 }
 
@@ -273,7 +273,8 @@ export class FileChangeItem extends vscode.TreeItem {
         public readonly sourceBranch: string,
         public readonly targetBranch: string,
         public readonly commentCount: number = 0,
-        useBasename: boolean = false
+        useBasename: boolean = false,
+        gitRootUri?: vscode.Uri
     ) {
         const displayName = useBasename
             ? fileChange.filePath.substring(fileChange.filePath.lastIndexOf('/') + 1)
@@ -281,9 +282,8 @@ export class FileChangeItem extends vscode.TreeItem {
         super(displayName, vscode.TreeItemCollapsibleState.None);
 
         // Set resourceUri so FileDecorationProvider can show comment badges
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
-        if (workspaceRoot) {
-            this.resourceUri = vscode.Uri.joinPath(workspaceRoot, fileChange.filePath);
+        if (gitRootUri) {
+            this.resourceUri = vscode.Uri.joinPath(gitRootUri, fileChange.filePath);
         }
 
         const statusLabel = fileChange.status.charAt(0).toUpperCase();

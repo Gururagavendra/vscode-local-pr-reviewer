@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 import { FileChange, FileChangeStatus, GitApi, GitRepository, CommitInfo } from '../types';
 
 export class GitService {
     private repo: GitRepository | undefined;
     private workspaceRoot: string;
+    private _gitRoot: string | undefined;
 
     private _onDidChangeBranch = new vscode.EventEmitter<string>();
     readonly onDidChangeBranch = this._onDidChangeBranch.event;
@@ -15,6 +17,50 @@ export class GitService {
 
     constructor(private context: vscode.ExtensionContext) {
         this.workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+    }
+
+    /**
+     * Get the actual git repository root (where .git is located).
+     * This may differ from the workspace folder if VSCode opened a subfolder.
+     */
+    async getGitRoot(): Promise<string> {
+        if (this._gitRoot) {
+            return this._gitRoot;
+        }
+        try {
+            const gitRoot = (await this.execGit('rev-parse --show-toplevel')).trim();
+            this._gitRoot = this.mapOntoWorkspacePath(gitRoot);
+            return this._gitRoot;
+        } catch {
+            // Fallback to workspace root if git command fails
+            return this.workspaceRoot;
+        }
+    }
+
+    /**
+     * `rev-parse --show-toplevel` resolves symlinks; remap the result onto
+     * the workspace path so file URIs stay inside the workspace folder.
+     */
+    private mapOntoWorkspacePath(gitRoot: string): string {
+        if (!this.workspaceRoot) {
+            return gitRoot;
+        }
+        try {
+            const realWorkspaceRoot = fs.realpathSync(this.workspaceRoot);
+            if (gitRoot.startsWith(realWorkspaceRoot)) {
+                return this.workspaceRoot + gitRoot.slice(realWorkspaceRoot.length);
+            }
+        } catch {
+            // Workspace root not on disk; keep the git-reported path
+        }
+        return gitRoot;
+    }
+
+    /**
+     * Get the git root as a vscode.Uri.
+     */
+    async getGitRootUri(): Promise<vscode.Uri> {
+        return vscode.Uri.file(await this.getGitRoot());
     }
 
     async initialize(): Promise<boolean> {
@@ -183,7 +229,7 @@ export class GitService {
         return new Promise((resolve, reject) => {
             cp.exec(
                 `git ${args}`,
-                { cwd: this.workspaceRoot, maxBuffer: 10 * 1024 * 1024 },
+                { cwd: this._gitRoot || this.workspaceRoot, maxBuffer: 10 * 1024 * 1024 },
                 (error, stdout, stderr) => {
                     if (error) {
                         reject(new Error(stderr || error.message));
